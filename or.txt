@@ -1,0 +1,10 @@
+x = int(5.9)
+y = int("45")
+z = string(100)
+
+print(x)
+print(y)
+
+temp = z
+temp = temp + "bla"
+print(temp )

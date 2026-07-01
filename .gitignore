@@ -1,0 +1,32 @@
+# Compiled binaries
+main
+origin
+origin_bin
+test/origin_bin
+test/c_bin
+test/origin_bin_unopt
+test/c_bin_unopt
+
+# Generated output files
+origin.cpp
+test/origin.cpp
+rec.txt
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor configs
+.vscode/
+.idea/
+*.suo
+*.user
+*.workspace
+# Object and Debug files
+*.o
+*.dSYM/
