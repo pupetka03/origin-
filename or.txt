@@ -1,10 +1,20 @@
-x = int(5.9)
-y = int("45")
-z = string(100)
+baza fibonacci(n) {
+    jak n <= 1 {
+        return n
+    }
 
-print(x)
-print(y)
+    a = 0
+    b = 1
 
-temp = z
-temp = temp + "bla"
-print(temp )
+    takt i range(2, n + 1) {
+        c = a + b
+        a = b
+        b = c
+    }
+
+    return b
+}
+
+takt i range(0, 11) {
+    print("fib(" i ") = " fibonacci(i))
+}

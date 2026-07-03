@@ -61,7 +61,7 @@ class Console_Origin {
             return cislo;
         }
 
-        double scan_float() {
+        float scan_float() {
             float cislo;
             cin >> cislo;
             return cislo;

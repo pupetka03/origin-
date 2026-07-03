@@ -150,21 +150,18 @@ public:
     Print print_origin(int *i, const vector<string>& text) {
         Print printn; (*i)++;
         if (text[*i] == "(") { (*i)++;
-            while (text[*i] != ")") {
-                if (text[*i] == "\"") { (*i)++;
-                    while (*i < text.size() && text[*i] != "\""){
-                        printn.str.push_back(text[*i]);
-                        (*i)++;
-                    }
-                    if (*i < text.size() && text[*i] == "\"") {
-                        (*i)++;
-                    }
-                } else {
+            int depth = 1;
+            while (*i < text.size() && depth > 0) {
+                if (text[*i] == "(") {
+                    depth++;
+                } else if (text[*i] == ")") {
+                    depth--;
+                }
+                if (depth > 0) {
                     printn.str.push_back(text[*i]);
                     (*i)++;
                 }
             }
-
             if (*i < text.size() && text[*i] == ")") {
                 (*i)++;
             }

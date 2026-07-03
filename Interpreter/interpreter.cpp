@@ -67,11 +67,51 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
     if (auto p = dynamic_pointer_cast<Print>(node)) {
         file << indent << "cout << ";
-        for (const auto& s : p->str) {
-            file << s << " << ";
+        bool f_in = false;
+
+        for (size_t i = 0; i < p->str.size(); ++i) {
+            const auto& s = p->str[i];
+            
+            if (s == "(" || f_in) {
+                file << s;
+                if (s == ")") {
+                    f_in = false;
+                    if (i + 1 < p->str.size() && p->str[i+1] != "," && p->str[i+1] != " ") {
+                        file << " << ";
+                    }
+                } else {
+                    f_in = true;
+                }
+                continue;
+            }
+
+            if (s == "," || s == " ") {
+                file << " << ";
+                continue;
+            }
+
+            file << s;
+
+            if (i + 1 < p->str.size()) {
+                const auto& next = p->str[i+1];
+                
+                if (next == "(" || next == "." || s == "." ||
+                    next == "+" || next == "-" || next == "*" || next == "/" ||
+                    s == "+" || s == "-" || s == "*" || s == "/" ||
+                    next == "<" || next == ">" || next == "<=" || next == ">=" || next == "==" || next == "!=" ||
+                    s == "<" || s == ">" || s == "<=" || s == ">=" || s == "==" || s == "!=" ||
+                    next == "&&" || next == "||" || s == "&&" || s == "||") 
+                {
+                    // part of the same expression
+                } else {
+                    file << " << ";
+                }
+            }
         }
-        file << "endl;" << endl;
+        
+        file << " << endl;" << endl;
     }
+    
 
     else if (auto f = dynamic_pointer_cast<Func_create>(node)) {
         
