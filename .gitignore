@@ -30,3 +30,4 @@ Thumbs.db
 # Object and Debug files
 *.o
 *.dSYM/
+output

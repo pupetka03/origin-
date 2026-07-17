@@ -2,25 +2,27 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <initializer_list>
 
 using namespace std;
 
 
 //range
-vector<int> range(int start, int end, int step) {
-    vector<int> array; 
-    for (int i = start; i < end; i=i+step) {
+template <typename T>
+vector<T> range(T start, T end, T step) {
+    vector<T> array; 
+    for (T i = start; i < end; i=i+step) {
         array.push_back(i);
     }
     return array;
 }
-
-vector<int> range(int start, int end) {
-    return range(start, end, 1);
+template <typename T>
+vector<T> range(T start, T end) {
+    return range(start, end, T(1));
 }
-
-vector<int> range(int end) {
-    return range(0, end, 1);
+template <typename T>
+vector<T> range(T end) {
+    return range(T(0), end, T(1));
 }
 
 
@@ -118,3 +120,38 @@ inline string _string(const string& val) {
 inline string _string(const char* val) {
     return string(val);
 }
+
+
+// myArray implementation for lists
+template <typename T>
+class myArray {
+private:
+    std::vector<T> data;
+
+public:
+    myArray() = default;
+    myArray(std::initializer_list<T> init) : data(init) {}
+
+    void append(const T& val) {
+        data.push_back(val);
+    }
+
+    T& operator[](size_t index) {
+        return data[index];
+    }
+    const T& operator[](size_t index) const {
+        return data[index];
+    }
+
+    size_t size() const {
+        return data.size();
+    }
+
+    auto begin() { return data.begin(); }
+    auto end() { return data.end(); }
+    auto begin() const { return data.begin(); }
+    auto end() const { return data.end(); }
+};
+
+template <typename T>
+using _list = myArray<T>;

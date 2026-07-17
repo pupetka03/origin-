@@ -1,7 +1,7 @@
 #include "interpreter.h"
 #include <iostream>
 #include <fstream>
-
+#include <unordered_set>
 /*#include <iostream>
 #include <fstream>
 #include <vector>
@@ -33,6 +33,23 @@ int verific_var(vector<string> &var, string x) {
 
     return 0;
 }
+
+string clean_type(string type) {
+    if (type.size() > 1 && type[0] == '_') {
+        string base = type.substr(1);
+        static const std::unordered_set<string> base_types = {
+            "int", "float", "double", "char", "bool", "void", "string"
+        };
+        if (base_types.count(base)) {
+            return base; // повертаємо чистий "int", "double" тощо
+        }
+    }
+    return type; // якщо це користувацький тип (наприклад, Hero), повертаємо як є
+}
+
+
+
+
 
 //print func (оголошення функцій)
 void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
@@ -229,20 +246,28 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         if (inicializacia) {
             file << v->name;
         } else {
-            if (!v->type.empty()) {
-                file << v->type << " " << v->name;
+            if (v->type != "auto" && !v->value.empty() && v->value[0] == "[") {
+                file << "_list<" << clean_type(v->type) << "> " << v->name;
             } else {
-                file << v->name;
+                file << v->type << " " << v->name; 
             }
         }
 
         if (!v->value.empty()) {
             file << " = ";
+            bool is_list_init = (v->value[0] == "[");
             for (const auto& val : v->value) {
-                file << val;
+                if (is_list_init) {
+                    if (val == "[") file << "{";
+                    else if (val == "]") file << "}";
+                    else file << val;
+                } else {
+                    file << val;
+                }
             }
             file << ";" << endl;
         }
+
         else if (!v->func.empty()) {
             file << " = " << v->func[0].name << "(";
             vector<string> clean_args;

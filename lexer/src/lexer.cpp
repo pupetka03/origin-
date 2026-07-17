@@ -103,7 +103,7 @@ vector<string> Lexer::token() {
         "class", "struct", "union", "enum", "template", "namespace",
         "using", "const", "static", "extern", "inline", "virtual",
         "friend", "typedef", "typename", "switch", "case", "default",
-        "main", "string"
+        "main", "string", "list"
     };
 
     for (string &token : code) {

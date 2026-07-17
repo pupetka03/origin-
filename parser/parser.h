@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <type_traits>
+#include <cctype>
 
 #include "../ast/ast.h"
 using namespace std;
@@ -70,23 +71,56 @@ public:
             
             
             else {
-                if (*i + 1 < text.size() && text[*i + 1] == "=") {
+                bool is_untyped = (*i + 1 < text.size() && text[*i + 1] == "=");
+                bool is_typed   = (*i + 4 < text.size() && text[*i + 1] == "-" && text[*i + 2] == ">" && text[*i + 4] == "=");
+
+                if (is_untyped || is_typed) {
                     Variables variables;
-                    variables.name = text[*i]; 
-                    (*i) = (*i) + 2;
+                    variables.name = text[*i];
+
+                    if (is_typed) {
+                        variables.type = text[*i + 3];
+                        (*i) = (*i) + 5;
+                    } else {
+                        variables.type = "auto";
+                        (*i) = (*i) + 2;
+                    }
+
                     if (*i + 1 < text.size() && text[*i + 1] == "(") {
                         Call_func call;
                         call.name = text[*i]; 
                         (*i) = (*i) + 2;
-                        while(*i < text.size() && text[*i] != ")") {
-                            if (text[*i] != "," && text[*i] != " ") {
-                                call.arg_func.push_back(text[*i]); 
+                        
+                        int depth = 1;
+                        string current_arg = "";
+                        while (*i < text.size() && depth > 0) {
+                            if (text[*i] == "(") {
+                                depth++;
+                                current_arg += text[*i];
+                            } else if (text[*i] == ")") {
+                                depth--;
+                                if (depth > 0) {
+                                    current_arg += text[*i];
+                                }
+                            } else if (text[*i] == "," && depth == 1) {
+                                if (!current_arg.empty()) {
+                                    call.arg_func.push_back(current_arg);
+                                    current_arg = "";
+                                }
+                            } else if (text[*i] != " ") {
+                                if (!current_arg.empty() && 
+                                    isalnum(static_cast<unsigned char>(current_arg.back())) && 
+                                    isalnum(static_cast<unsigned char>(text[*i][0]))) {
+                                    current_arg += " ";
+                                }
+                                current_arg += text[*i];
                             }
                             (*i)++;
                         }
-                        (*i)++; 
+                        if (!current_arg.empty()) {
+                            call.arg_func.push_back(current_arg);
+                        }
                         variables.func.push_back(call);
-                        variables.type = "auto";
                     } else {
                         while (*i < text.size() && text[*i] != "\n") {
                             variables.value.push_back(text[*i]);
@@ -95,7 +129,6 @@ public:
                         if (*i < text.size() && text[*i] == "\n") {
                             (*i)++;
                         }
-                        variables.type = "auto";
                     }
                     nodes.push_back(make_shared<Variables>(variables));
                 }
@@ -103,13 +136,36 @@ public:
                     Call_func call;
                     call.name = text[*i]; 
                     (*i) = (*i) + 2;
-                    while(*i < text.size() && text[*i] != ")") {
-                        if (text[*i] != "," && text[*i] != " ") {
-                            call.arg_func.push_back(text[*i]); 
+                    
+                    int depth = 1;
+                    string current_arg = "";
+                    while (*i < text.size() && depth > 0) {
+                        if (text[*i] == "(") {
+                            depth++;
+                            current_arg += text[*i];
+                        } else if (text[*i] == ")") {
+                            depth--;
+                            if (depth > 0) {
+                                current_arg += text[*i];
+                            }
+                        } else if (text[*i] == "," && depth == 1) {
+                            if (!current_arg.empty()) {
+                                call.arg_func.push_back(current_arg);
+                                current_arg = "";
+                            }
+                        } else if (text[*i] != " ") {
+                            if (!current_arg.empty() && 
+                                isalnum(static_cast<unsigned char>(current_arg.back())) && 
+                                isalnum(static_cast<unsigned char>(text[*i][0]))) {
+                                current_arg += " ";
+                            }
+                            current_arg += text[*i];
                         }
                         (*i)++;
                     }
-                    (*i)++; 
+                    if (!current_arg.empty()) {
+                        call.arg_func.push_back(current_arg);
+                    }
                     nodes.push_back(make_shared<Call_func>(call));
                 }
                 else {

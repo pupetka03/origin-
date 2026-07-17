@@ -4,9 +4,9 @@
 
 # Origin++
 
-**Origin++** is a lightweight, clean, and highly readable programming language with Ukrainian/Slavic-inspired syntax that transpiles directly into optimized modern C++17. 
+**Origin++** is a high-level programming language that is compiled together into highly optimized C++17.
 
-**Origin++** — це легка, чиста та зрозуміла мова програмування з українським/слов'янським синтаксисом, яка транспілюється безпосередньо у високооптимізований C++17.
+**Origin++** — це високорівнева мова програмування, яка транспілюється безпосередньо у високооптимізований C++17.
 
 ---
 
@@ -25,8 +25,9 @@
 
 ### 1. Variables & Printing / Змінні та Вивід
 ```python
-x = 10
-y = "Hello, World!"
+x = 10 //int
+y = "Hello, World!" // const char* x = "text";
+z = string(y) // string
 
 # Print automatically outputs variables and strings / Автоматичний вивід
 print("x is: " x)
@@ -89,7 +90,31 @@ sum = main()
 print(sum)
 ```
 
-### 5. Type Conversions / Приведення типів
+### 5. Lists & Arrays / Списки та Масиви
+```python
+# Creating typed lists / Створення типізованих списків
+numbers -> int = [1, 2, 3]
+names -> string = ["John", "Mary"]
+
+# Empty list declaration / Оголошення порожнього списку
+empty_list -> int = []
+
+# Accessing elements by index / Доступ до елементів за індексом
+first = numbers[0]
+
+# Appending elements / Додавання елементів
+numbers.append(4)
+
+# Getting list size / Отримання розміру списку
+size = numbers.size()
+
+# Iterating over list / Перебір списку
+takt x numbers {
+    print(x)
+}
+```
+
+### 6. Type Conversions / Приведення типів
 ```python
 x = int(5.9)      # 5
 y = int("45")     # 45
