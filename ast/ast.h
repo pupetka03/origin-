@@ -25,6 +25,9 @@ class Func_create : public AST {
         vector<string> arg_func;
         vector<shared_ptr<AST>> body;
         vector<string> retur_n; //return
+        
+        //users -> [] abo args
+        vector<vector<string>> control_return;
 };
 
 class Call_func :public AST {
@@ -39,6 +42,8 @@ class Variables : public AST {
         vector<Call_func> func;
         shared_ptr<Variables> var;
         vector<string> value;
+
+        vector<string> unpack_vars;
 };
 
 class Takt : public AST {

@@ -60,6 +60,22 @@ public:
                 Return_node ret;
                 (*i)++;
                 while (*i < text.size() && text[*i] != "\n") {
+                    //cout << "f: " << text[*i] <<  endl;
+                    if (*i < text.size() && text[*i + 1] == ",") {
+                        string make = "std::make_tuple("; //make_tuple
+
+                        while (*i < text.size() && text[*i] != "\n") { 
+                            if (text[*i] != ",") {
+                                make += text[*i];
+                            } else {
+                                make += ", ";
+                            } (*i)++;
+    
+                        }
+                        make += ")";
+                        ret.expr.push_back(make);
+                        break;
+                    }
                     ret.expr.push_back(text[*i]);
                     (*i)++;
                 }
@@ -71,7 +87,7 @@ public:
             
             
             else {
-                bool is_untyped = (*i + 1 < text.size() && text[*i + 1] == "=");
+                bool is_untyped = (*i + 1 < text.size() && text[*i + 1] == "=" || *i + 1 < text.size() && text[*i + 1] == "," );
                 bool is_typed   = (*i + 4 < text.size() && text[*i + 1] == "-" && text[*i + 2] == ">" && text[*i + 4] == "=");
 
                 if (is_untyped || is_typed) {
@@ -83,8 +99,21 @@ public:
                         (*i) = (*i) + 5;
                     } else {
                         variables.type = "auto";
-                        (*i) = (*i) + 2;
+
+                        if (text[*i + 1] == ",") {
+                            while (*i < text.size() && text[*i] != "=") {
+                                if (text[*i] != "," && text[*i] != " ") {
+                                    variables.unpack_vars.push_back(text[*i]);
+                                } 
+                                (*i)++;
+                            }    
+                            (*i)++; 
+                        }
+                        else {
+                            (*i) = (*i) + 2;
+                        }
                     }
+                    
 
                     if (*i + 1 < text.size() && text[*i + 1] == "(") {
                         Call_func call;
@@ -178,8 +207,11 @@ public:
 
     Func_create create_fun(int *i, const vector<string>& text) {
         Func_create Func;
+        vector<vector<string>> without_auto;
 
         (*i)++; Func.name = text[*i]; (*i)++;
+
+        
         
         if (text[*i] == "(") {
             (*i)++;
@@ -194,10 +226,51 @@ public:
                 Func.arg_func.push_back(" ");
             } 
 
+            
+            if (*i < text.size() && text[*i] == "-" && text[*i+1] == ">") {
+                (*i) = *i + 2;
+                
+                while (*i < text.size() && text[*i] != "{") {
+                    //кортеж
+                    if (text[*i] == "[") {
+                        (*i)++;
+                        vector<string> args;
+                        while (*i < text.size() && text[*i] != "]") {
+                            if (text[*i] != "," && text[*i] != " ") {
+                                args.push_back(text[*i]);
+                            } (*i)++;
+                        } (*i)++;
+                        without_auto.push_back(args);
+
+                    }
+
+                    else if (text[*i] != "||" && text[*i] != " ") {
+                        if (*i + 2 < text.size() && text[*i + 1] == "[" && text[*i + 2] == "]") {
+                            without_auto.push_back({"_list<" + text[*i] + ">"});
+                            (*i) = (*i) + 3;
+                        } else {
+                            without_auto.push_back({text[*i]});
+                            (*i)++;
+                        }
+                    }
+
+                    else if (text[*i] == "||") {
+                        (*i)++;
+                    }
+
+                    else {
+                        (*i)++;
+                    }
+                }
+            }
+
+
             if (*i < text.size() && text[*i] == "{") {
                 (*i)++; 
                 Func.body = parse_block(i, text);
             }
+
+            Func.control_return = without_auto;
         }
 
         return Func;
@@ -230,22 +303,31 @@ public:
         while (text[*i] != "{") {
             jak.condition.push_back(text[*i]); (*i)++;
         }(*i)++;
-        
+    
         jak.true_branch = parse_block(i, text);
+
+        while (*i < text.size() && (text[*i] == "\n" || text[*i] == " ")) {
+            (*i)++;
+        }
 
         if (*i < text.size() && text[*i] == "inakjak") {
             jak.false_branch.push_back(make_shared<Jak>(create_jak(i, text)));
         }
 
         else if  (*i < text.size() && text[*i] == "inak") { (*i)++;
-            if (text[*i] == "{") {
+
+            while (*i < text.size() && (text[*i] == "\n" || text[*i] == " ")) {
+                (*i)++;
+            }
+        
+            if (*i < text.size() && text[*i] == "{") {
                 (*i)++;
                 jak.false_branch = parse_block(i, text);
             }
         }
         
         return jak;
-    }
+}
 
     Cykl create_cykl(int *i, const vector<string>& text) {
         Cykl cykl;

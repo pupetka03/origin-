@@ -3,8 +3,24 @@
 #include <vector>
 #include <string>
 #include <initializer_list>
+#include <algorithm>
+#include <chrono>
+#include <variant>
 
 using namespace std;
+
+
+template<typename... Args>
+std::ostream& operator<<(std::ostream& os, const std::variant<Args...>& var) {
+    std::visit([&os](const auto& val) {
+        os << val;
+    }, var);
+    return os;
+}
+
+
+
+
 
 
 //range
@@ -154,4 +170,17 @@ public:
 };
 
 template <typename T>
-using _list = myArray<T>;
+using list = myArray<T>;
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const myArray<T>& arr) {
+    os << "[";
+    for (size_t i = 0; i < arr.size(); ++i) {
+        os << arr[i];
+        if (i + 1 < arr.size()) {
+            os << ", ";
+        }
+    }
+    os << "]";
+    return os;
+}

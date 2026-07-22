@@ -107,6 +107,10 @@ vector<string> Lexer::token() {
     };
 
     for (string &token : code) {
+        if (token.size() > 0 && token[0] == '_' && token[0] != '"') {
+            std::cerr << "Помилка: Ідентифікатори не можуть починатися з підкреслення '_': " << token << std::endl;
+            exit(1);
+        }
         if (token == "ta") {
             token = "&&";
         }

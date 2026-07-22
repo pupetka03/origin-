@@ -14,8 +14,12 @@ void import_data(ofstream &file) {
     file << "#include <fstream>" << endl;
     file << "#include <vector>" << endl;
     file << "#include <string>" << endl;
+    file << "#include <tuple>" << endl;
+    file << "#include <variant>" << endl;
+    
 
     file << "#include \"libraries/originb.h\"" << endl;
+
 
 
     file << "using namespace std;" << endl;
@@ -35,16 +39,61 @@ int verific_var(vector<string> &var, string x) {
 }
 
 string clean_type(string type) {
-    if (type.size() > 1 && type[0] == '_') {
-        string base = type.substr(1);
-        static const std::unordered_set<string> base_types = {
-            "int", "float", "double", "char", "bool", "void", "string"
-        };
-        if (base_types.count(base)) {
-            return base; // повертаємо чистий "int", "double" тощо
+    static const vector<pair<string, string>> replacements = {
+        {"_int", "int"},
+        {"_double", "double"},
+        {"_string", "string"},
+        {"_bool", "bool"},
+        {"_float", "float"},
+        {"_char", "char"},
+        {"_void", "void"},
+        {"_list", "list"}
+    };
+    for (const auto& r : replacements) {
+        size_t pos = 0;
+        while ((pos = type.find(r.first, pos)) != string::npos) {
+            type.replace(pos, r.first.length(), r.second);
+            pos += r.second.length();
         }
     }
-    return type; // якщо це користувацький тип (наприклад, Hero), повертаємо як є
+    return type;
+}
+
+string type_of_fun(const vector<vector<string>>& control_return) {
+    if (control_return.empty()) {
+        return "auto";
+    }
+    
+    vector<string> alt;
+    for(const auto &kod : control_return) {
+        if (kod.size() > 1) {
+            string tuple_type = "std::tuple<";
+            for(size_t i = 0; i < kod.size(); i++) {
+                tuple_type += clean_type(kod[i]);
+                if (i + 1 < kod.size()) tuple_type += ", ";
+            }
+            tuple_type += ">";
+            alt.push_back(tuple_type);
+        }
+        else {
+            // поодинокий тип
+            alt.push_back(clean_type(kod[0]));
+        }
+    }
+
+    if (alt.size() == 1) {
+        return alt[0]; 
+    }
+
+    string variant_type = "std::variant<";
+    for (size_t i = 0; i < alt.size(); ++i) {
+        variant_type += alt[i];
+        if (i + 1 < alt.size()) variant_type += ", ";
+    }
+    variant_type += ">";
+
+
+    return variant_type;
 }
 
 
@@ -64,7 +113,7 @@ void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
             if (!clean_args.empty()) {
                 file << "template <typename T> ";
             }
-            file << "auto " << f->name << "(";
+            file << type_of_fun(f->control_return) << " " << f->name << "(";
             for (size_t k = 0; k < clean_args.size(); ++k) {
                 file << "T " << clean_args[k];
                 if (k + 1 < clean_args.size()) {
@@ -88,42 +137,12 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
         for (size_t i = 0; i < p->str.size(); ++i) {
             const auto& s = p->str[i];
-            
-            if (s == "(" || f_in) {
+            if (s == ",") {
+                file << " << ' ' << ";
+            } else {
                 file << s;
-                if (s == ")") {
-                    f_in = false;
-                    if (i + 1 < p->str.size() && p->str[i+1] != "," && p->str[i+1] != " ") {
-                        file << " << ";
-                    }
-                } else {
-                    f_in = true;
-                }
-                continue;
             }
 
-            if (s == "," || s == " ") {
-                file << " << ";
-                continue;
-            }
-
-            file << s;
-
-            if (i + 1 < p->str.size()) {
-                const auto& next = p->str[i+1];
-                
-                if (next == "(" || next == "." || s == "." ||
-                    next == "+" || next == "-" || next == "*" || next == "/" ||
-                    s == "+" || s == "-" || s == "*" || s == "/" ||
-                    next == "<" || next == ">" || next == "<=" || next == ">=" || next == "==" || next == "!=" ||
-                    s == "<" || s == ">" || s == "<=" || s == ">=" || s == "==" || s == "!=" ||
-                    next == "&&" || next == "||" || s == "&&" || s == "||") 
-                {
-                    // part of the same expression
-                } else {
-                    file << " << ";
-                }
-            }
         }
         
         file << " << endl;" << endl;
@@ -131,7 +150,19 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     
 
     else if (auto f = dynamic_pointer_cast<Func_create>(node)) {
-        
+
+        /*
+        for (int i = 0; i < f->control_return.size(); i++) {
+            for (int y = 0; y < f->control_return[i].size(); y++) {
+                cout << f->control_return[i][y] << endl;
+            }
+        }
+        */
+
+
+        auto types = type_of_fun(f->control_return);
+        //cout << types << endl;
+    
         vector<string> clean_args;
         for (const auto& arg : f->arg_func) {
             if (arg != " " && arg != "," && !arg.empty()) {
@@ -142,7 +173,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         if (!clean_args.empty()) {
             file << "template <typename T> ";
         }
-        file << "auto " << f->name << "(";
+        file << types <<" "<<  f->name << "(";
         for (size_t k = 0; k < clean_args.size(); ++k) {
             file << "T " << clean_args[k];
             if (k + 1 < clean_args.size()) {
@@ -157,6 +188,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 var_of_fun.push_back(arg);
             }
         }
+
         for (const auto& child : f->body) {
             print_tree(child, depth + 1, file, var_of_fun);
         }
@@ -234,25 +266,41 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     }
 
     else if (auto v = dynamic_pointer_cast<Variables>(node)) {
-            
-        int inicializacia = 0;
+        file << indent;
+        
+        // Якщо це розпаковка кортежу (Structured Binding)
+        if (!v->unpack_vars.empty()) {
+            file << "auto [";
+            for (size_t i = 0; i < v->unpack_vars.size(); ++i) {
+                file << v->unpack_vars[i];
+                if (i + 1 < v->unpack_vars.size()) {
+                    file << ", ";
+                }
+            }
+            file << "]";
+        } 
+        // Якщо це звичайне оголошення змінної
+        else {
+            int inicializacia = 0;
 
-        if (verific_var(var_or, v->name)) {
-            inicializacia = 1;
-        } else {
-            var_or.push_back(v->name);
-        }
-
-        if (inicializacia) {
-            file << v->name;
-        } else {
-            if (v->type != "auto" && !v->value.empty() && v->value[0] == "[") {
-                file << "_list<" << clean_type(v->type) << "> " << v->name;
+            if (verific_var(var_or, v->name)) {
+                inicializacia = 1;
             } else {
-                file << v->type << " " << v->name; 
+                var_or.push_back(v->name);
+            }
+
+            if (inicializacia) {
+                file << v->name;
+            } else {
+                if (v->type != "auto" && !v->value.empty() && v->value[0] == "[") {
+                file << "list<" << clean_type(v->type) << "> " << v->name;
+            } else {
+                    file << v->type << " " << v->name; 
+                }
             }
         }
 
+        // Виводимо значення (якщо воно є)
         if (!v->value.empty()) {
             file << " = ";
             bool is_list_init = (v->value[0] == "[");
@@ -267,7 +315,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             }
             file << ";" << endl;
         }
-
+        // Виводимо виклик функції (якщо він є)
         else if (!v->func.empty()) {
             file << " = " << v->func[0].name << "(";
             vector<string> clean_args;
@@ -286,14 +334,6 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         }
         else {
             file << ";" << endl;
-        }
-
-        if (!v->value.empty()) {
-
-        }
-
-        if (!v->func.empty()) {
-            
         }
     }
 

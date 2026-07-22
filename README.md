@@ -14,8 +14,11 @@
 
 * **No Semicolons** / Без крапок з комою — clean Python-like code structure.
 * **Auto-typing** / Автовизначення типів — variables do not require explicit type declarations.
+* **Tuple Unpacking & Multi-return** / Розпаковка кортежів — return multiple values (`return a, b`) and unpack them (`x, y = fun()`).
+* **Advanced Signatures** / Робота з типами — declare list/array return types (`int[]`) and union variant types (`int abo string[]`).
 * **Ukrainian Boolean Logic** / Українська булева логіка — `ta` (AND), `abo` (OR), `ne` (NOT).
 * **Slavic Branching** / Слов'янське розгалуження — `jak` (if), `inakjak` (else if), `inak` (else).
+* **Protected Identifiers** / Захист від колізій — names starting with `_` are forbidden to protect transpiler keywords.
 * **Blazing Fast** / Блискавична швидкість — transpiles directly to C++17 with `-O3` optimizations.
 * **One-step Run** / Запуск в один крок — automated build and execution script.
 
@@ -29,9 +32,9 @@ x = 10 //int
 y = "Hello, World!" // const char* x = "text";
 z = string(y) // string
 
-# Print automatically outputs variables and strings / Автоматичний вивід
-print("x is: " x)
-print(y)
+# Print outputs variables, strings, lists, and tuples separated by commas / Вивід через кому
+print("x is: ", x, " and y is: ", y)
+print(z)
 ```
 
 ### 2. Boolean Logic & Branching / Логіка та Розгалуження
@@ -81,13 +84,33 @@ jak i == 5 {
 
 ### 4. Functions & Return / Функції та Повернення
 ```python
-# Functions are defined with 'baza' / Визначення функції
+# 1. Simple function / Проста функція
 baza main() {
     return 5
 }
 
 sum = main()
 print(sum)
+
+# 2. Multiple return values & unpacking / Багатозначне повернення та розпаковка
+baza get_user() {
+    age = 21
+    name = "Ihor"
+    return age, name
+}
+
+user_age, user_name = get_user()
+print("User: ", user_name, " Age: ", user_age)
+
+# 3. List and variant signature types / Сигнатури списків та варіантів (abo)
+baza get_data(x) -> int[] abo int {
+    jak x == 0 {
+        return 0
+    } inak {
+        arr -> int = [1, 2, 3]
+        return arr
+    }
+}
 ```
 
 ### 5. Lists & Arrays / Списки та Масиви
