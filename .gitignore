@@ -31,3 +31,7 @@ Thumbs.db
 *.o
 *.dSYM/
 output
+
+# Temporary test source files
+or.txt
+origin.txt
