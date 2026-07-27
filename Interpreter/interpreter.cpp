@@ -317,7 +317,37 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         }
         // Виводимо виклик функції (якщо він є)
         else if (!v->func.empty()) {
-            file << " = " << v->func[0].name << "(";
+            bool use_variant_get = false;
+            string tuple_type = "";
+            
+            if (!v->unpack_vars.empty() && function_returns.count(v->func[0].name)) {
+                const auto& control_return = function_returns[v->func[0].name];
+                if (control_return.size() > 1) { // It's a variant type
+                    for (const auto& alt : control_return) {
+                        if (alt.size() == v->unpack_vars.size()) {
+                            use_variant_get = true;
+                            if (alt.size() > 1) {
+                                tuple_type = "std::tuple<";
+                                for (size_t i = 0; i < alt.size(); i++) {
+                                    tuple_type += clean_type(alt[i]);
+                                    if (i + 1 < alt.size()) tuple_type += ", ";
+                                }
+                                tuple_type += ">";
+                            } else {
+                                tuple_type = clean_type(alt[0]);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (use_variant_get) {
+                file << " = std::get<" << tuple_type << ">(" << v->func[0].name << "(";
+            } else {
+                file << " = " << v->func[0].name << "(";
+            }
+
             vector<string> clean_args;
             for (const auto& arg : v->func[0].arg_func) {
                 if (arg != " " && arg != "," && !arg.empty()) {
@@ -330,7 +360,12 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                     file << ", ";
                 }
             }
-            file << ");" << endl;
+
+            if (use_variant_get) {
+                file << "));" << endl;
+            } else {
+                file << ");" << endl;
+            }
         }
         else {
             file << ";" << endl;
@@ -386,6 +421,13 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
 
 void Interpreter::print_ast(const AST& tree) {
+    function_returns.clear();
+    for (const auto& node : tree.rekurzia) {
+        if (auto f = dynamic_pointer_cast<Func_create>(node)) {
+            function_returns[f->name] = f->control_return;
+        }
+    }
+
     ofstream MyFile("origin.cpp");
     import_data(MyFile);
     print_baza(tree.rekurzia, MyFile);
