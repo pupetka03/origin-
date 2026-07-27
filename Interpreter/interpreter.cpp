@@ -85,7 +85,7 @@ string type_of_fun(const vector<vector<string>>& control_return) {
         return alt[0]; 
     }
 
-    string variant_type = "std::variant<";
+    string variant_type = "Variant<";
     for (size_t i = 0; i < alt.size(); ++i) {
         variant_type += alt[i];
         if (i + 1 < alt.size()) variant_type += ", ";
@@ -207,8 +207,9 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         }
         file << ") {" << endl;
 
+        vector<string> var_true = var_or;
         for (const auto& child : j->true_branch) {
-            print_tree(child, depth + 1, file, var_or);
+            print_tree(child, depth + 1, file, var_true);
         }
 
         file << indent << "}" << endl;
@@ -219,8 +220,9 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 print_tree(j->false_branch[0], depth, file, var_or);
             } else {
                 file << indent << "else {" << endl;
+                vector<string> var_false = var_or;
                 for (const auto& child : j->false_branch) {
-                    print_tree(child, depth + 1, file, var_or);
+                    print_tree(child, depth + 1, file, var_false);
                 }
                 file << indent << "}" << endl;
             }
@@ -237,8 +239,9 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         }
         file << ") {" << endl;
 
+        vector<string> var_cycle = var_or;
         for (const auto& child : c->body) {
-            print_tree(child, depth + 1, file, var_or);
+            print_tree(child, depth + 1, file, var_cycle);
         }
 
         file << indent << "}" << endl;
@@ -258,8 +261,12 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         }
         file << ") {" << endl;
 
+        vector<string> var_loop = var_or;
+        if (!t->condition.empty()) {
+            var_loop.push_back(t->condition[0]);
+        }
         for (const auto& child : t->body) {
-            print_tree(child, depth + 1, file, var_or);
+            print_tree(child, depth + 1, file, var_loop);
         }
 
         file << indent << "}" << endl;
