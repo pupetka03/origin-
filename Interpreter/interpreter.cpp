@@ -262,7 +262,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             print_tree(child, depth + 1, file, var_or);
         }
 
-        file << "}";
+        file << indent << "}" << endl;
     }
 
     else if (auto v = dynamic_pointer_cast<Variables>(node)) {

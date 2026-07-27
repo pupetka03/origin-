@@ -9,6 +9,15 @@
 
 using namespace std;
 
+using namespace std;
+
+using int_t = int;
+using double_t = double;
+using float_t = float;
+using char_t = char;
+using bool_t = bool;
+using string_t = std::string;
+
 
 template<typename... Args>
 std::ostream& operator<<(std::ostream& os, const std::variant<Args...>& var) {

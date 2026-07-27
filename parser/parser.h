@@ -233,15 +233,43 @@ public:
                 while (*i < text.size() && text[*i] != "{") {
                     //кортеж
                     if (text[*i] == "[") {
-                        (*i)++;
+                        (*i)++; // Skip outer '['
                         vector<string> args;
-                        while (*i < text.size() && text[*i] != "]") {
-                            if (text[*i] != "," && text[*i] != " ") {
-                                args.push_back(text[*i]);
-                            } (*i)++;
-                        } (*i)++;
+                        string current_type = "";
+                        int nest_depth = 0;
+                        while (*i < text.size()) {
+                            if (text[*i] == "[") {
+                                nest_depth++;
+                                current_type += "[";
+                            }
+                            else if (text[*i] == "]") {
+                                if (nest_depth == 0) {
+                                    if (!current_type.empty()) {
+                                        args.push_back(current_type);
+                                    }
+                                    (*i)++; // Skip outer ']'
+                                    break;
+                                } else {
+                                    nest_depth--;
+                                    current_type += "]";
+                                    if (current_type.size() >= 2 && current_type.substr(current_type.size() - 2) == "[]") {
+                                        string base_type = current_type.substr(0, current_type.size() - 2);
+                                        current_type = "_list<" + base_type + ">";
+                                    }
+                                }
+                            }
+                            else if (text[*i] == "," && nest_depth == 0) {
+                                if (!current_type.empty()) {
+                                    args.push_back(current_type);
+                                    current_type = "";
+                                }
+                            }
+                            else if (text[*i] != " ") {
+                                current_type += text[*i];
+                            }
+                            (*i)++;
+                        }
                         without_auto.push_back(args);
-
                     }
 
                     else if (text[*i] != "||" && text[*i] != " ") {
