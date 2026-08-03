@@ -59,9 +59,39 @@ string clean_type(string type) {
     return type;
 }
 
-string type_of_fun(const vector<vector<string>>& control_return) {
+bool has_return_node(const shared_ptr<AST>& node) {
+    if (!node) return false;
+    if (dynamic_pointer_cast<Return_node>(node)) return true;
+    
+    if (auto j = dynamic_pointer_cast<Jak>(node)) {
+        for (const auto& child : j->true_branch) {
+            if (has_return_node(child)) return true;
+        }
+        for (const auto& child : j->false_branch) {
+            if (has_return_node(child)) return true;
+        }
+    }
+    if (auto c = dynamic_pointer_cast<Cykl>(node)) {
+        for (const auto& child : c->body) {
+            if (has_return_node(child)) return true;
+        }
+    }
+    if (auto t = dynamic_pointer_cast<Takt>(node)) {
+        for (const auto& child : t->body) {
+            if (has_return_node(child)) return true;
+        }
+    }
+    return false;
+}
+
+string type_of_fun(const vector<vector<string>>& control_return, const vector<shared_ptr<AST>>& body) {
     if (control_return.empty()) {
-        return "auto";
+        for (const auto& node : body) {
+            if (has_return_node(node)) {
+                return "auto";
+            }
+        }
+        return "void";
     }
     
     vector<string> alt;
@@ -113,7 +143,7 @@ void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
             if (!clean_args.empty()) {
                 file << "template <typename T> ";
             }
-            file << type_of_fun(f->control_return) << " " << f->name << "(";
+            file << type_of_fun(f->control_return, f->body) << " " << f->name << "(";
             for (size_t k = 0; k < clean_args.size(); ++k) {
                 file << "T " << clean_args[k];
                 if (k + 1 < clean_args.size()) {
@@ -160,7 +190,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         */
 
 
-        auto types = type_of_fun(f->control_return);
+        auto types = type_of_fun(f->control_return, f->body);
         //cout << types << endl;
     
         vector<string> clean_args;
