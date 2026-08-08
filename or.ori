@@ -1,0 +1,13 @@
+import origin
+
+f = f_open("origin.ori", "r")
+
+cykl true {
+    line = f.citat_riadok()
+    jak line == "" {
+        break
+    }
+    print(line)
+}
+
+f.zakryty()

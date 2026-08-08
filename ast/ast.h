@@ -75,9 +75,16 @@ class Jak: public AST {
     
 };
 
+
 class Return_node : public AST {
     public:
         vector<string> expr;
+};
+
+class Import : public AST {
+    public:
+        string import_name;
+        vector<shared_ptr<AST>> import_body;
 };
 
 class Break_node : public AST {};

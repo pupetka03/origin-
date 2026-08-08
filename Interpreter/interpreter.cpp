@@ -19,6 +19,7 @@ void import_data(ofstream &file) {
     
 
     file << "#include \"libraries/originb.h\"" << endl;
+    file << "#include \"libraries/riadok.h\"" << endl;
 
 
 
@@ -39,6 +40,19 @@ int verific_var(vector<string> &var, string x) {
 }
 
 string clean_type(string type) {
+    // If the type contains a colon, it's a dictionary shorthand: K:V -> dict<K, V>
+    size_t colon_pos = type.find(':');
+    if (colon_pos != string::npos) {
+        string key_part = type.substr(0, colon_pos);
+        string val_part = type.substr(colon_pos + 1);
+        
+        // Clean both parts first to handle any potential underscores
+        key_part = clean_type(key_part);
+        val_part = clean_type(val_part);
+        
+        return "dict<" + key_part + ", " + val_part + ">";
+    }
+
     static const vector<pair<string, string>> replacements = {
         {"_int", "int"},
         {"_double", "double"},
@@ -47,7 +61,8 @@ string clean_type(string type) {
         {"_float", "float"},
         {"_char", "char"},
         {"_void", "void"},
-        {"_list", "list"}
+        {"_list", "list"},
+        {"_dict", "dict"}
     };
     for (const auto& r : replacements) {
         size_t pos = 0;
@@ -56,6 +71,17 @@ string clean_type(string type) {
             pos += r.second.length();
         }
     }
+    
+    // Convert [ and ] to < and > for templated types like dict[K, V]
+    size_t bracket_open = type.find('[');
+    if (bracket_open != string::npos) {
+        type[bracket_open] = '<';
+        size_t bracket_close = type.rfind(']');
+        if (bracket_close != string::npos) {
+            type[bracket_close] = '>';
+        }
+    }
+    
     return type;
 }
 
@@ -127,9 +153,6 @@ string type_of_fun(const vector<vector<string>>& control_return, const vector<sh
 }
 
 
-
-
-
 //print func (оголошення функцій)
 void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
     for (const auto& node : tree) {
@@ -152,7 +175,14 @@ void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
             }
             file << ");" << endl;
         }
+        else if (auto imp = dynamic_pointer_cast<Import>(node)) {
+            file << "namespace " << imp->import_name << " {" << endl;
+            print_baza(imp->import_body, file);
+            file << "}" << endl;
+        }
     }
+
+    
 }
 
 //intepritator
@@ -316,11 +346,15 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             }
             file << "]";
         } 
-        // Якщо це звичайне оголошення змінної
         else {
             int inicializacia = 0;
+            string base_name = v->name;
+            size_t bracket_pos = v->name.find('[');
+            if (bracket_pos != string::npos) {
+                base_name = v->name.substr(0, bracket_pos);
+            }
 
-            if (verific_var(var_or, v->name)) {
+            if (verific_var(var_or, base_name)) {
                 inicializacia = 1;
             } else {
                 var_or.push_back(v->name);
@@ -332,7 +366,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 if (v->type != "auto" && !v->value.empty() && v->value[0] == "[") {
                 file << "list<" << clean_type(v->type) << "> " << v->name;
             } else {
-                    file << v->type << " " << v->name; 
+                    file << clean_type(v->type) << " " << v->name; 
                 }
             }
         }
@@ -445,6 +479,11 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     else if (auto n = dynamic_pointer_cast<Nic_node>(node)) {
         file << indent << "; // nic" << endl;
     }
+    else if (auto f = dynamic_pointer_cast<Import>(node)) { 
+    for (const auto& child : f->import_body) {
+        print_tree(child, depth + 1, file, var_or);
+    }
+    }
 
     else {
        
@@ -479,12 +518,22 @@ void Interpreter::print_ast(const AST& tree) {
         }
     }
 
+    for (const auto& node : tree.rekurzia) {
+        if (auto f = dynamic_pointer_cast<Import>(node)) {
+            MyFile << "namespace " << f->import_name << "{" << endl;
+            print_tree(f, 0, MyFile, dummy_vars);
+            MyFile << endl;
+            MyFile << "}" << endl;
+        }
+    }
+
+
     // 3. global
     MyFile << "int main() {" << endl;
 
     vector<string> variables_or;
     for (const auto& node : tree.rekurzia) {
-        if (dynamic_pointer_cast<Func_create>(node)) {
+        if (dynamic_pointer_cast<Func_create>(node) || dynamic_pointer_cast<Import>(node)) {
             continue;
         }
         print_tree(node, 1, MyFile, variables_or); 

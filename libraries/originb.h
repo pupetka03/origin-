@@ -8,6 +8,7 @@
 #include <variant>
 #include <tuple>
 #include <type_traits>
+#include <map>
 
 // Forward declaration of Variant
 template <typename... Args>
@@ -353,6 +354,57 @@ public:
 template <typename T>
 using list = myArray<T>;
 
+
+// ============================================================================
+// 4.1 Map
+// ============================================================================
+
+template <typename K, typename V>
+class dict {
+private:
+    std::map<K, V> data;
+
+public:
+    dict() = default;
+
+    dict(std::initializer_list<std::pair<const K, V>> init) : data(init) {}
+
+    V& operator[](const K& key) {
+        return data[key];
+    }
+
+    const V& at(const K& key) const {
+        return data.at(key);
+    }
+
+    bool has_key(const K& key) const {
+        return data.find(key) != data.end();
+    }
+
+    void erase(const K& key) {
+        data.erase(key);
+    }
+
+    void clear() {
+        data.clear();
+    }
+
+    size_t size() const {
+        return data.size();
+    }
+
+    bool empty() const {
+        return data.empty();
+    }
+
+    auto begin() { return data.begin(); }
+    auto end() { return data.end(); }
+    auto begin() const { return data.begin(); }
+    auto end() const { return data.end(); }
+};
+
+
+
 // ============================================================================
 // 4. TYPE CONVERSION FUNCTIONS (Casting)
 // ============================================================================
@@ -503,14 +555,14 @@ std::ostream& operator<<(std::ostream& os, const myArray<T>& arr) {
     return os;
 }
 
-template<typename... Args>
-std::ostream& operator<<(std::ostream& os, const std::variant<Args...>& var) {
+template<typename T, typename... Args>
+std::ostream& operator<<(std::ostream& os, const std::variant<T, Args...>& var) {
     os << _string(var);
     return os;
 }
 
-template<typename... Args>
-std::ostream& operator<<(std::ostream& os, const Variant<Args...>& var) {
+template<typename T, typename... Args>
+std::ostream& operator<<(std::ostream& os, const Variant<T, Args...>& var) {
     os << _string(var);
     return os;
 }

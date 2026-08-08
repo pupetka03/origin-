@@ -84,36 +84,92 @@ public:
                 }
                 nodes.push_back(make_shared<Return_node>(ret));
             }
+
+            else if (text[*i] == "import") {
+                auto import_ast = create_import(text[(*i)+1]);
+                auto import = make_shared<Import>();
+                import->import_name = text[(*i) + 1];
+                import->import_body = import_ast.rekurzia;
+                nodes.push_back(import);
+                (*i)+= 2;
+                
+
+            }
             
             
             else {
-                bool is_untyped = (*i + 1 < text.size() && text[*i + 1] == "=" || *i + 1 < text.size() && text[*i + 1] == "," );
-                bool is_typed   = (*i + 4 < text.size() && text[*i + 1] == "-" && text[*i + 2] == ">" && text[*i + 4] == "=");
-
-                if (is_untyped || is_typed) {
-                    Variables variables;
-                    variables.name = text[*i];
-
-                    if (is_typed) {
-                        variables.type = text[*i + 3];
-                        (*i) = (*i) + 5;
-                    } else {
-                        variables.type = "auto";
-
-                        if (text[*i + 1] == ",") {
-                            while (*i < text.size() && text[*i] != "=") {
-                                if (text[*i] != "," && text[*i] != " ") {
-                                    variables.unpack_vars.push_back(text[*i]);
-                                } 
-                                (*i)++;
-                            }    
-                            (*i)++; 
-                        }
-                        else {
-                            (*i) = (*i) + 2;
+                // Check if it is a subscript assignment: e.g. xx[index] = ...
+                bool is_subscript_assign = false;
+                int subscript_end_idx = -1;
+                if (*i + 1 < text.size() && text[*i + 1] == "[") {
+                    int depth = 0;
+                    for (int k = *i + 1; k < text.size(); ++k) {
+                        if (text[k] == "[") {
+                            depth++;
+                        } else if (text[k] == "]") {
+                            depth--;
+                            if (depth == 0) {
+                                if (k + 1 < text.size() && text[k + 1] == "=") {
+                                    is_subscript_assign = true;
+                                    subscript_end_idx = k;
+                                }
+                                break;
+                            }
                         }
                     }
+                }
+
+                bool is_untyped = (*i + 1 < text.size() && text[*i + 1] == "=" || *i + 1 < text.size() && text[*i + 1] == "," );
+                bool is_typed = false;
+                int equals_idx = -1;
+                if (*i + 2 < text.size() && text[*i + 1] == "-" && text[*i + 2] == ">") {
+                    for (int k = *i + 3; k < text.size(); ++k) {
+                        if (text[k] == "\n") break;
+                        if (text[k] == "=") {
+                            is_typed = true;
+                            equals_idx = k;
+                            break;
+                        }
+                    }
+                }
+
+                if (is_subscript_assign || is_untyped || is_typed) {
+                    Variables variables;
                     
+                    if (is_subscript_assign) {
+                        string name_expr = "";
+                        for (int k = *i; k <= subscript_end_idx; ++k) {
+                            name_expr += text[k];
+                        }
+                        variables.name = name_expr;
+                        variables.type = "auto";
+                        *i = subscript_end_idx + 2;
+                    }
+                    else {
+                        variables.name = text[*i];
+                        if (is_typed) {
+                            string type_str = "";
+                            for (int k = *i + 3; k < equals_idx; ++k) {
+                                type_str += text[k];
+                            }
+                            variables.type = type_str;
+                            *i = equals_idx + 1;
+                        } else {
+                            variables.type = "auto";
+                            if (text[*i + 1] == ",") {
+                                while (*i < text.size() && text[*i] != "=") {
+                                    if (text[*i] != "," && text[*i] != " ") {
+                                        variables.unpack_vars.push_back(text[*i]);
+                                    } 
+                                    (*i)++;
+                                }    
+                                (*i)++; 
+                            }
+                            else {
+                                (*i) = (*i) + 2;
+                            }
+                    }
+                } 
 
                     if (*i + 1 < text.size() && text[*i + 1] == "(") {
                         Call_func call;
@@ -203,6 +259,30 @@ public:
             }
         }
         return nodes;
+    }
+
+    AST create_import(const string &file) {
+        AST import; Lexer Lex;
+        //cout << file << endl;
+        ifstream ReadFile(file + ".ori");
+        if (!ReadFile.is_open()) {
+            cout << "Error: cannot open file " << file << endl;
+            return import;
+        }
+        string riadok;
+        while (getline(ReadFile, riadok)) {
+            Lex.add_code(riadok);
+        }
+
+        ReadFile.close();
+        vector<string> text = Lex.token();
+
+        return create_ast(text);
+
+
+
+        return import;
+
     }
 
     Func_create create_fun(int *i, const vector<string>& text) {
@@ -328,22 +408,27 @@ public:
 
     Jak create_jak(int *i, const vector<string>& text) {
         Jak jak; (*i)++;
-        while (text[*i] != "{") {
+        while (*i < text.size() && text[*i] != "{") {
             jak.condition.push_back(text[*i]); (*i)++;
-        }(*i)++;
+        }
+        if (*i >= text.size()) {
+            cerr << "Помилка синтаксису: Очікувався символ '{' після умови 'jak'" << endl;
+            exit(1);
+        }
+        (*i)++;
     
         jak.true_branch = parse_block(i, text);
-
+ 
         while (*i < text.size() && (text[*i] == "\n" || text[*i] == " ")) {
             (*i)++;
         }
-
+ 
         if (*i < text.size() && text[*i] == "inakjak") {
             jak.false_branch.push_back(make_shared<Jak>(create_jak(i, text)));
         }
-
+ 
         else if  (*i < text.size() && text[*i] == "inak") { (*i)++;
-
+ 
             while (*i < text.size() && (text[*i] == "\n" || text[*i] == " ")) {
                 (*i)++;
             }
@@ -356,27 +441,37 @@ public:
         
         return jak;
 }
-
+ 
     Cykl create_cykl(int *i, const vector<string>& text) {
         Cykl cykl;
         (*i)++;
-        while(text[*i] != "{") {
+        while(*i < text.size() && text[*i] != "{") {
             cykl.condition.push_back(text[*i]); (*i)++;
-        } (*i)++;
+        }
+        if (*i >= text.size()) {
+            cerr << "Помилка синтаксису: Очікувався символ '{' після умови 'cykl'" << endl;
+            exit(1);
+        }
+        (*i)++;
         
         cykl.body = parse_block(i, text);
-
+ 
         return cykl;
     }
-
+ 
     Takt create_takt(int *i, const vector<string>& text) {
         Takt takt; (*i)++;
-        while (text[*i] != "{"){
+        while (*i < text.size() && text[*i] != "{"){
             takt.condition.push_back(text[*i]); (*i)++;
-        }(*i)++;
+        }
+        if (*i >= text.size()) {
+            cerr << "Помилка синтаксису: Очікувався символ '{' після умови 'takt'" << endl;
+            exit(1);
+        }
+        (*i)++;
         
         takt.body = parse_block(i, text);
-
+ 
         return takt;
     }
 

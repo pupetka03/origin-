@@ -1,0 +1,30 @@
+{
+    "name": "origin-vscode",
+    "displayName": "Origin++ Language Support",
+    "description": "Syntax highlighting for the Origin++ programming language.",
+    "version": "1.0.0",
+    "publisher": "ihorholodenko",
+    "engines": {
+        "vscode": "^1.50.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "origin",
+            "aliases": ["Origin++", "origin"],
+            "extensions": [".ori"],
+            "configuration": "./language-configuration.json",
+            "icon": {
+                "light": "./images/origin_icon.png",
+                "dark": "./images/origin_icon.png"
+            }
+        }],
+        "grammars": [{
+            "language": "origin",
+            "scopeName": "source.origin",
+            "path": "./syntaxes/origin.tmLanguage.json"
+        }]
+    }
+}
