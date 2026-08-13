@@ -87,6 +87,13 @@ class Import : public AST {
         vector<shared_ptr<AST>> import_body;
 };
 
+class Typ: public AST {
+    public:
+        string name;
+        string podoba;
+        vector<shared_ptr<AST>> body;
+};
+
 class Break_node : public AST {};
 class Continue_node : public AST {};
 class Nic_node : public AST {};

@@ -39,6 +39,13 @@ int verific_var(vector<string> &var, string x) {
     return 0;
 }
 
+string clean_token(string token) {
+    if (token.rfind("nas.", 0) == 0) {
+        return "this->" + token.substr(4);
+    }
+    return token;
+}
+
 string clean_type(string type) {
     // If the type contains a colon, it's a dictionary shorthand: K:V -> dict<K, V>
     size_t colon_pos = type.find(':');
@@ -260,7 +267,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
         file << indent << "if (";
         for (size_t k = 0; k < j->condition.size(); ++k) {
-            file << j->condition[k];
+            file << clean_token(j->condition[k]);
             if (k + 1 < j->condition.size()) {
                 file << " ";
             }
@@ -292,7 +299,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     else if (auto c = dynamic_pointer_cast<Cykl>(node)) {
         file << indent << "while (";
         for (size_t k = 0; k < c->condition.size(); ++k) {
-            file << c->condition[k];
+            file << clean_token(c->condition[k]);
             if (k + 1 < c->condition.size()) {
                 file << " ";
             }
@@ -313,7 +320,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
   
         while(i < size_r) {
-            file << t->condition[i];
+            file << clean_token(t->condition[i]);
             if (i == 0) {
                 file << ":";
             }
@@ -354,14 +361,14 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 base_name = v->name.substr(0, bracket_pos);
             }
 
-            if (verific_var(var_or, base_name)) {
+            if (verific_var(var_or, base_name) || base_name.rfind("nas.", 0) == 0 || base_name.find('.') != string::npos) {
                 inicializacia = 1;
             } else {
                 var_or.push_back(v->name);
             }
 
             if (inicializacia) {
-                file << v->name;
+                file << clean_token(v->name);
             } else {
                 if (v->type != "auto" && !v->value.empty() && v->value[0] == "[") {
                 file << "list<" << clean_type(v->type) << "> " << v->name;
@@ -379,9 +386,9 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 if (is_list_init) {
                     if (val == "[") file << "{";
                     else if (val == "]") file << "}";
-                    else file << val;
+                    else file << clean_token(val);
                 } else {
-                    file << val;
+                    file << clean_token(val);
                 }
             }
             file << ";" << endl;
@@ -426,7 +433,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 }
             }
             for (size_t k = 0; k < clean_args.size(); ++k) {
-                file << clean_args[k];
+                file << clean_token(clean_args[k]);
                 if (k + 1 < clean_args.size()) {
                     file << ", ";
                 }
@@ -452,7 +459,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             }
         }
         for (size_t k = 0; k < clean_args.size(); ++k) {
-            file << clean_args[k];
+            file << clean_token(clean_args[k]);
             if (k + 1 < clean_args.size()) {
                 file << ", ";
             }
@@ -463,7 +470,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     else if (auto r = dynamic_pointer_cast<Return_node>(node)) {
         file << indent << "return ";
         for (const auto& val : r->expr) {
-            file << val;
+            file << clean_token(val);
         }
         file << ";" << endl;
     }
@@ -480,10 +487,102 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         file << indent << "; // nic" << endl;
     }
     else if (auto f = dynamic_pointer_cast<Import>(node)) { 
-    for (const auto& child : f->import_body) {
-        print_tree(child, depth + 1, file, var_or);
-    }
-    }
+        for (const auto& child : f->import_body) {
+            print_tree(child, depth + 1, file, var_or);
+        }
+    } else if (auto f = dynamic_pointer_cast<Typ>(node)) {
+        file << indent << "class " << f->name;
+        if (f->podoba != "false") {
+            file << " : public " << f->podoba;
+        }
+        file << " {" << endl;
+        file << indent << "public:" << endl;
+        
+        // Collect class variables (fields) so methods don't auto-declare them
+        vector<string> class_fields;
+        for (const auto& member : f->body) {
+            if (auto v = dynamic_pointer_cast<Variables>(member)) {
+                class_fields.push_back(v->name);
+            }
+        }
+        
+        // Print member variables (fields)
+        for (const auto& member : f->body) {
+            if (auto v = dynamic_pointer_cast<Variables>(member)) {
+                file << indent << "  " << clean_type(v->type) << " " << v->name;
+                if (!v->value.empty()) {
+                    file << " = ";
+                    bool is_list_init = (v->value[0] == "[");
+                    for (const auto& val : v->value) {
+                        if (is_list_init) {
+                            if (val == "[") file << "{";
+                            else if (val == "]") file << "}";
+                            else file << clean_token(val);
+                        } else {
+                            file << clean_token(val);
+                        }
+                    }
+                }
+                file << ";" << endl;
+            }
+        }
+        
+        // Print methods and constructors
+        for (const auto& member : f->body) {
+            if (auto meth = dynamic_pointer_cast<Func_create>(member)) {
+                vector<string> clean_args;
+                for (const auto& arg : meth->arg_func) {
+                    if (arg != " " && arg != "," && !arg.empty()) {
+                        clean_args.push_back(arg);
+                    }
+                }
+                
+                file << indent << "  ";
+                if (!clean_args.empty()) {
+                    file << "template <";
+                    for (size_t k = 0; k < clean_args.size(); ++k) {
+                        file << "typename T" << k;
+                        if (k + 1 < clean_args.size()) file << ", ";
+                    }
+                    file << "> ";
+                }
+                
+                // If it is a constructor (method name matches class name)
+                if (meth->name == f->name) {
+                    file << meth->name << "(";
+                } else {
+                    if (clean_args.empty()) {
+                        file << "virtual ";
+                    }
+                    file << type_of_fun(meth->control_return, meth->body) << " " << meth->name << "(";
+                }
+                
+                for (size_t k = 0; k < clean_args.size(); ++k) {
+                    file << "T" << k << " " << clean_args[k];
+                    if (k + 1 < clean_args.size()) {
+                        file << ", ";
+                    }
+                }
+                file << ") {" << endl;
+                
+                // Setup variable scope inside the method
+                vector<string> var_of_meth = class_fields;
+                for (const auto& arg : clean_args) {
+                    var_of_meth.push_back(arg);
+                }
+                var_of_meth.push_back("nas");
+                
+                // Print method body
+                for (const auto& child : meth->body) {
+                    print_tree(child, depth + 2, file, var_of_meth);
+                }
+                file << indent << "  }" << endl;
+            }
+        }
+        
+        file << indent << "  virtual ~" << f->name << "() = default;" << endl;
+        file << indent << "};" << endl;
+    }  
 
     else {
        
@@ -519,6 +618,13 @@ void Interpreter::print_ast(const AST& tree) {
     }
 
     for (const auto& node : tree.rekurzia) {
+        if (auto f = dynamic_pointer_cast<Typ>(node)) {
+            print_tree(node, 0, MyFile, dummy_vars);
+            MyFile << endl;
+        }
+    }
+
+    for (const auto& node : tree.rekurzia) {
         if (auto f = dynamic_pointer_cast<Import>(node)) {
             MyFile << "namespace " << f->import_name << "{" << endl;
             print_tree(f, 0, MyFile, dummy_vars);
@@ -533,7 +639,7 @@ void Interpreter::print_ast(const AST& tree) {
 
     vector<string> variables_or;
     for (const auto& node : tree.rekurzia) {
-        if (dynamic_pointer_cast<Func_create>(node) || dynamic_pointer_cast<Import>(node)) {
+        if (dynamic_pointer_cast<Func_create>(node) || dynamic_pointer_cast<Import>(node) || dynamic_pointer_cast<Typ>(node)) {
             continue;
         }
         print_tree(node, 1, MyFile, variables_or); 

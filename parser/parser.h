@@ -14,6 +14,7 @@ class Paser {
 public:
 
     vector<shared_ptr<AST>> parse_block(int *i, const vector<string>& text) {
+        //загальне дерево
         vector<shared_ptr<AST>> nodes;
         
         while(*i < text.size()) {
@@ -93,7 +94,25 @@ public:
                 nodes.push_back(import);
                 (*i)+= 2;
                 
+            }
 
+            else if (text[*i] == "typ") {
+                auto typ = make_shared<Typ>();
+                typ->name = text[(*i)+1];
+                if (*i + 2 < text.size() && text[*i+2] == "(") {
+                    if (text[*i+3] != ")") {
+                        typ->podoba = text[*i+3];
+                        (*i)+= 6;
+                    } else {
+                        typ->podoba = "false";
+                        (*i)+= 5;
+                    }
+                } else {
+                    typ->podoba = "false";
+                        (*i) += 3;
+                }
+                typ->body = parse_block(i, text);
+                nodes.push_back(typ);
             }
             
             
@@ -123,10 +142,10 @@ public:
                 bool is_typed = false;
                 int equals_idx = -1;
                 if (*i + 2 < text.size() && text[*i + 1] == "-" && text[*i + 2] == ">") {
+                    is_typed = true;
                     for (int k = *i + 3; k < text.size(); ++k) {
                         if (text[k] == "\n") break;
                         if (text[k] == "=") {
-                            is_typed = true;
                             equals_idx = k;
                             break;
                         }
@@ -149,11 +168,21 @@ public:
                         variables.name = text[*i];
                         if (is_typed) {
                             string type_str = "";
-                            for (int k = *i + 3; k < equals_idx; ++k) {
+                            int end_type_idx = equals_idx;
+                            if (end_type_idx == -1) {
+                                end_type_idx = *i + 3;
+                                while (end_type_idx < text.size() && text[end_type_idx] != "\n") {
+                                    end_type_idx++;
+                                }
+                            }
+                            for (int k = *i + 3; k < end_type_idx; ++k) {
                                 type_str += text[k];
                             }
                             variables.type = type_str;
-                            *i = equals_idx + 1;
+                            *i = end_type_idx;
+                            if (equals_idx != -1) {
+                                (*i)++;
+                            }
                         } else {
                             variables.type = "auto";
                             if (text[*i + 1] == ",") {
@@ -474,6 +503,7 @@ public:
  
         return takt;
     }
+
 
     AST create_ast(const vector<string>& text) {
         AST main_brain;
