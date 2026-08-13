@@ -154,7 +154,102 @@ y = int("45")     # 45
 z = string(100)   # "100"
 ```
 
-### 7. Variant Operations & Indexing / Робота з Variant-типами та Індексація
+### 7. Dictionaries / Словники (`dict`)
+Origin++ supports a robust dictionary type mapping keys to values using the clean shorthand syntax `KeyType:ValueType`:
+
+```python
+# 1. Creating and initializing dictionaries / Створення та ініціалізація словників
+prices -> string:double = {{"яблуко", 25.5}, {"банан", 40.0}}
+empty_dict -> int:string = {}
+
+# 2. Adding & updating elements / Додавання та оновлення
+prices["апельсин"] = 65.0
+prices["яблуко"] = 28.0
+
+# 3. Checking key existence / Перевірка наявності ключа
+jak prices.has_key("вишня") {
+    print("Ціна вишні: ", prices["вишня"])
+} inak {
+    print("Вишні немає на складі")
+}
+
+# 4. Deleting elements / Видалення елементів
+prices.erase("банан")   # Removes key 'банан'
+prices.clear()          # Clears whole dictionary
+
+# 5. Helper properties / Корисні властивості
+count = prices.size()   # Number of elements
+is_empty = prices.empty() # Check if empty (true/false)
+
+# 6. Iterating over dictionary / Обхід словника у циклі
+takt item prices {
+    print("Товар: ", item.first, " Ціна: ", item.second)
+}
+```
+
+### 8. File Operations / Робота з файлами
+File handling is supported via `f_open` with modes `"r"` (read), `"w"` (write), or `"a"` (append):
+
+```python
+# 1. Writing to a file / Запис у файл
+f_out = f_open("output.txt", "w")
+jak f_out.otkryty() {
+    f_out.zapis("Hello from Origin++!")
+    f_out.novy_riadok()
+    f_out.zakryty()
+}
+
+# 2. Reading a file line-by-line / Порядкове читання файлу
+f_in = f_open("output.txt", "r")
+jak f_in.otkryty() {
+    cykl true {
+        line = f_in.citat_riadok()
+        jak line == "" {
+            break
+        }
+        print(line)
+    }
+    f_in.zakryty()
+}
+
+# 3. Read helper methods / Інші методи читання
+# f_in.citat()          # Reads entire file as a single string (preserves newlines)
+# f_in.citat_riadky()   # Reads all lines into a list[string]
+```
+
+### 9. OOP & Classes / Об'єктно-орієнтоване програмування
+Origin++ features clean, native object-oriented capabilities (classes, constructors, inheritance, and methods):
+
+```python
+# 1. Defining classes and inheritance / Оголошення класів та наслідування
+typ People() {
+    x -> string
+}
+
+typ Developer(People) {
+    xx -> int = 5
+
+    # Constructor named after the class / Конструктор
+    baza Developer(x, xx) {
+        nas.x = x      # 'nas' acts as 'this' / 'nas' працює як 'this'
+        nas.xx = xx
+    }
+
+    # Class method / Метод класу (automatically virtual if no parameters)
+    baza info() {
+        print("Розробник: ", nas.x, " Рівень: ", nas.xx)
+    }
+}
+
+# 2. Object Instantiation / Створення об'єкта
+dev = Developer("Origin++ Creator", 10)
+
+# 3. Member and method access / Звернення до полів та методів об'єкта
+print("Стаж: ", dev.xx)
+dev.info()
+```
+
+### 10. Variant Operations & Indexing / Робота з Variant-типами та Індексація
 
 Origin++ надає потужні вбудовані засоби для прозорої роботи з типом `Variant` (об'єднаннями `abo`):
 
