@@ -1,0 +1,38 @@
+name: Build Origin++ Compiler
+
+on:
+  push:
+    branches: [ "master", "main", "compiler-packer" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Compile Compiler (Linux / macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        clang++ -std=c++17 main.cpp lexer/src/lexer.cpp Interpreter/interpreter.cpp -o origin
+
+    - name: Compile Compiler (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        g++ -std=c++17 main.cpp lexer/src/lexer.cpp Interpreter/interpreter.cpp -o origin.exe
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: origin-${{ matrix.os }}
+        path: |
+          origin
+          origin.exe
+        if-no-files-found: ignore
