@@ -32,6 +32,9 @@ bool check_compiler(const string& cmd) {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef _WIN32
+    std::system("chcp 65001 > nul");
+#endif
     if (argc < 2) {
         print_help();
         return 1;
