@@ -30,7 +30,7 @@ jobs:
     - name: Compile Compiler (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        g++ -std=c++17 main.cpp lexer/src/lexer.cpp Interpreter/interpreter.cpp -o origin.exe
+        g++ -std=c++17 main.cpp lexer/src/lexer.cpp Interpreter/interpreter.cpp -o origin.exe -static -static-libgcc -static-libstdc++
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4

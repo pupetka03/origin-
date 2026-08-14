@@ -137,6 +137,7 @@ int main(int argc, char *argv[]) {
     if (output_binary.find('.') == string::npos) {
         compile_cmd += ".exe";
     }
+    compile_cmd += " -static -static-libgcc -static-libstdc++";
 #endif
 
     cout << "==> Компіляція за допомогою " << compiler << "..." << endl;
