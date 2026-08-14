@@ -9,6 +9,7 @@
 #include <tuple>
 #include <type_traits>
 #include <map>
+#include <cctype>
 
 // Forward declaration of Variant
 template <typename... Args>
@@ -354,6 +355,58 @@ public:
 template <typename T>
 using list = myArray<T>;
 
+// ============================================================================
+// Text and Character Helpers / Текстові та Символьні Хелпери
+// ============================================================================
+
+inline bool is_digit(char c) {
+    return std::isdigit(static_cast<unsigned char>(c));
+}
+inline bool is_digit(const std::string& s) {
+    return !s.empty() && std::isdigit(static_cast<unsigned char>(s[0]));
+}
+
+inline bool is_alpha(char c) {
+    return std::isalpha(static_cast<unsigned char>(c));
+}
+inline bool is_alpha(const std::string& s) {
+    return !s.empty() && std::isalpha(static_cast<unsigned char>(s[0]));
+}
+
+inline bool is_space(char c) {
+    return std::isspace(static_cast<unsigned char>(c));
+}
+inline bool is_space(const std::string& s) {
+    return !s.empty() && std::isspace(static_cast<unsigned char>(s[0]));
+}
+
+inline std::string riadok_replace(std::string text, const std::string& old_str, const std::string& new_str) {
+    if (old_str.empty()) return text;
+    size_t pos = 0;
+    while ((pos = text.find(old_str, pos)) != std::string::npos) {
+        text.replace(pos, old_str.length(), new_str);
+        pos += new_str.length();
+    }
+    return text;
+}
+
+inline myArray<std::string> riadok_split(const std::string& text, const std::string& delimiter) {
+    myArray<std::string> tokens;
+    if (delimiter.empty()) {
+        for (char c : text) {
+            tokens.append(std::string(1, c));
+        }
+        return tokens;
+    }
+    size_t prev = 0, pos = 0;
+    while ((pos = text.find(delimiter, prev)) != std::string::npos) {
+        tokens.append(text.substr(prev, pos - prev));
+        prev = pos + delimiter.length();
+    }
+    tokens.append(text.substr(prev));
+    return tokens;
+}
+
 
 // ============================================================================
 // 4.1 Map
@@ -655,6 +708,12 @@ bool is_tuple(const Variant<Args...>& var) {
 // ============================================================================
 // 7. STANDARD RUNTIME UTILITIES
 // ============================================================================
+
+//String func
+
+
+
+
 
 // Range functions
 template <typename T>

@@ -11,23 +11,3 @@ cykl true {
 }
 
 f.zakryty()
-
-
-typ People() {
-    x -> string
-}
-
-typ Developer(People) {
-    xx->int = 5
-}
-
-
-D = Developer()
-D.x = "origin"
-
-cel -> Developer
-
-print(cel.xx, "lol")
-
-
-print(D.xx, D.x)

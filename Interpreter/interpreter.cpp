@@ -2,6 +2,11 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
+#include <unordered_map>
+#include <algorithm>
+
+static std::vector<string> declared_classes;
+static std::unordered_map<string, string> variable_types;
 /*#include <iostream>
 #include <fstream>
 #include <vector>
@@ -39,14 +44,130 @@ int verific_var(vector<string> &var, string x) {
     return 0;
 }
 
-string clean_token(string token) {
-    if (token.rfind("nas.", 0) == 0) {
-        return "this->" + token.substr(4);
+string clean_expression_string(string expr) {
+    if (expr == "nic") return "nullptr";
+    if (expr.rfind("nas.", 0) == 0) {
+        return "this->" + clean_expression_string(expr.substr(4));
     }
-    return token;
+    if (expr == "nas") {
+        return "this";
+    }
+    
+    // Replace "nas" with "this" checking for word boundaries
+    size_t nas_pos = 0;
+    while ((nas_pos = expr.find("nas", nas_pos)) != string::npos) {
+        bool before_ok = (nas_pos == 0 || (!isalnum(static_cast<unsigned char>(expr[nas_pos - 1])) && expr[nas_pos - 1] != '_'));
+        bool after_ok = (nas_pos + 3 == expr.length() || (!isalnum(static_cast<unsigned char>(expr[nas_pos + 3])) && expr[nas_pos + 3] != '_'));
+        if (before_ok && after_ok) {
+            expr.replace(nas_pos, 3, "this");
+            nas_pos += 4; // skip "this"
+        } else {
+            nas_pos += 3; // skip "nas"
+        }
+    }
+
+    // Replace "nic" with "nullptr" checking for word boundaries
+    size_t nic_pos = 0;
+    while ((nic_pos = expr.find("nic", nic_pos)) != string::npos) {
+        bool before_ok = (nic_pos == 0 || (!isalnum(static_cast<unsigned char>(expr[nic_pos - 1])) && expr[nic_pos - 1] != '_'));
+        bool after_ok = (nic_pos + 3 == expr.length() || (!isalnum(static_cast<unsigned char>(expr[nic_pos + 3])) && expr[nic_pos + 3] != '_'));
+        if (before_ok && after_ok) {
+            expr.replace(nic_pos, 3, "nullptr");
+            nic_pos += 7; // skip "nullptr"
+        } else {
+            nic_pos += 3; // skip "nic"
+        }
+    }
+    
+    size_t dot_pos = 0;
+    while ((dot_pos = expr.find('.', dot_pos)) != string::npos) {
+        int start_pos = (int)dot_pos - 1;
+        while (start_pos >= 0 && isspace(static_cast<unsigned char>(expr[start_pos]))) {
+            start_pos--;
+        }
+        while (start_pos >= 0) {
+            char c = expr[start_pos];
+            if (c == ']') {
+                int depth = 1;
+                start_pos--;
+                while (start_pos >= 0 && depth > 0) {
+                    if (expr[start_pos] == ']') depth++;
+                    else if (expr[start_pos] == '[') depth--;
+                    start_pos--;
+                }
+            } else if (c == ')') {
+                int depth = 1;
+                start_pos--;
+                while (start_pos >= 0 && depth > 0) {
+                    if (expr[start_pos] == ')') depth++;
+                    else if (expr[start_pos] == '(') depth--;
+                    start_pos--;
+                }
+            } else if (isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '(' || c == ')' || c == '[' || c == ']') {
+                start_pos--;
+            } else if (isspace(static_cast<unsigned char>(c))) {
+                start_pos--;
+            } else {
+                break;
+            }
+        }
+        start_pos++;
+        
+        string prefix = expr.substr(start_pos, dot_pos - start_pos);
+        string base_name = prefix;
+        size_t bracket_pos = prefix.find('[');
+        if (bracket_pos != string::npos) {
+            base_name = prefix.substr(0, bracket_pos);
+        }
+        
+        size_t first_alpha = base_name.find_first_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+        if (first_alpha != string::npos) {
+            base_name = base_name.substr(first_alpha);
+        } else {
+            base_name = "";
+        }
+        while (!base_name.empty() && !isalnum(static_cast<unsigned char>(base_name.back())) && base_name.back() != '_') {
+            base_name.pop_back();
+        }
+        
+        string clean_pref = prefix;
+        size_t pref_first = clean_pref.find_first_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+        if (pref_first != string::npos) {
+            clean_pref = clean_pref.substr(pref_first);
+        }
+        while (!clean_pref.empty() && isspace(static_cast<unsigned char>(clean_pref.back()))) {
+            clean_pref.pop_back();
+        }
+        
+        if (clean_pref.rfind("nas", 0) == 0 || variable_types.count(base_name)) {
+            expr.replace(dot_pos, 1, "->");
+            dot_pos += 2; // skip "->"
+        } else {
+            dot_pos += 1; // skip "."
+        }
+    }
+    return expr;
+}
+
+string clean_token(string token) {
+    return clean_expression_string(token);
+}
+
+string clean_tokens_list(const vector<string>& tokens) {
+    string joined = "";
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        joined += tokens[i];
+        if (i + 1 < tokens.size() && tokens[i] != "[" && tokens[i+1] != "]" && tokens[i] != "(" && tokens[i+1] != ")") {
+            joined += " ";
+        }
+    }
+    return clean_expression_string(joined);
 }
 
 string clean_type(string type) {
+    if (std::find(declared_classes.begin(), declared_classes.end(), type) != declared_classes.end()) {
+        return "std::shared_ptr<" + type + ">";
+    }
     // If the type contains a colon, it's a dictionary shorthand: K:V -> dict<K, V>
     size_t colon_pos = type.find(':');
     if (colon_pos != string::npos) {
@@ -192,7 +313,6 @@ void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
     
 }
 
-//intepritator
 void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &file, vector<string> &var_or) {
     if (!node) return;
 
@@ -200,18 +320,19 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
     if (auto p = dynamic_pointer_cast<Print>(node)) {
         file << indent << "cout << ";
-        bool f_in = false;
-
+        vector<string> current_group;
         for (size_t i = 0; i < p->str.size(); ++i) {
             const auto& s = p->str[i];
             if (s == ",") {
-                file << " << ' ' << ";
+                file << clean_tokens_list(current_group) << " << ' ' << ";
+                current_group.clear();
             } else {
-                file << s;
+                current_group.push_back(s);
             }
-
         }
-        
+        if (!current_group.empty()) {
+            file << clean_tokens_list(current_group);
+        }
         file << " << endl;" << endl;
     }
     
@@ -264,15 +385,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     }
 
     else if (auto j = dynamic_pointer_cast<Jak>(node)) {
-
-        file << indent << "if (";
-        for (size_t k = 0; k < j->condition.size(); ++k) {
-            file << clean_token(j->condition[k]);
-            if (k + 1 < j->condition.size()) {
-                file << " ";
-            }
-        }
-        file << ") {" << endl;
+        file << indent << "if (" << clean_tokens_list(j->condition) << ") {" << endl;
 
         vector<string> var_true = var_or;
         for (const auto& child : j->true_branch) {
@@ -297,14 +410,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     }
 
     else if (auto c = dynamic_pointer_cast<Cykl>(node)) {
-        file << indent << "while (";
-        for (size_t k = 0; k < c->condition.size(); ++k) {
-            file << clean_token(c->condition[k]);
-            if (k + 1 < c->condition.size()) {
-                file << " ";
-            }
-        }
-        file << ") {" << endl;
+        file << indent << "while (" << clean_tokens_list(c->condition) << ") {" << endl;
 
         vector<string> var_cycle = var_or;
         for (const auto& child : c->body) {
@@ -315,18 +421,9 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     }
 
     else if (auto t = dynamic_pointer_cast<Takt>(node)) {
-        int i = 0; int size_r = t->condition.size();
-        file << indent << "for(const auto &";
-
-  
-        while(i < size_r) {
-            file << clean_token(t->condition[i]);
-            if (i == 0) {
-                file << ":";
-            }
-            i++;
-        }
-        file << ") {" << endl;
+        file << indent << "for(const auto &" << t->condition[0] << " : ";
+        vector<string> rest_cond(t->condition.begin() + 1, t->condition.end());
+        file << clean_tokens_list(rest_cond) << ") {" << endl;
 
         vector<string> var_loop = var_or;
         if (!t->condition.empty()) {
@@ -365,14 +462,32 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 inicializacia = 1;
             } else {
                 var_or.push_back(v->name);
+                if (v->type != "auto") {
+                    variable_types[v->name] = v->type;
+                } else if (!v->func.empty()) {
+                    string func_name = v->func[0].name;
+                    if (std::find(declared_classes.begin(), declared_classes.end(), func_name) != declared_classes.end()) {
+                        variable_types[v->name] = func_name;
+                    } else if (func_name == "cast") {
+                        vector<string> clean_args;
+                        for (const auto& arg : v->func[0].arg_func) {
+                            if (arg != " " && arg != "," && !arg.empty()) {
+                                clean_args.push_back(arg);
+                            }
+                        }
+                        if (clean_args.size() > 1) {
+                            variable_types[v->name] = clean_args[1];
+                        }
+                    }
+                }
             }
 
             if (inicializacia) {
                 file << clean_token(v->name);
             } else {
-                if (v->type != "auto" && !v->value.empty() && v->value[0] == "[") {
-                file << "list<" << clean_type(v->type) << "> " << v->name;
-            } else {
+                if (v->type != "auto" && !v->value.empty() && v->value[0] == "[" && v->type.find(':') == string::npos && v->type.find("dict") == string::npos) {
+                    file << "list<" << clean_type(v->type) << "> " << v->name;
+                } else {
                     file << clean_type(v->type) << " " << v->name; 
                 }
             }
@@ -393,6 +508,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             }
             file << ";" << endl;
         }
+        // Виводимо виклик функції (якщо він є)
         // Виводимо виклик функції (якщо він є)
         else if (!v->func.empty()) {
             bool use_variant_get = false;
@@ -420,29 +536,38 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 }
             }
 
-            if (use_variant_get) {
-                file << " = std::get<" << tuple_type << ">(" << v->func[0].name << "(";
-            } else {
-                file << " = " << v->func[0].name << "(";
-            }
-
             vector<string> clean_args;
             for (const auto& arg : v->func[0].arg_func) {
                 if (arg != " " && arg != "," && !arg.empty()) {
                     clean_args.push_back(arg);
                 }
             }
-            for (size_t k = 0; k < clean_args.size(); ++k) {
-                file << clean_token(clean_args[k]);
-                if (k + 1 < clean_args.size()) {
-                    file << ", ";
-                }
-            }
 
-            if (use_variant_get) {
-                file << "));" << endl;
+            if (v->func[0].name == "cast") {
+                file << " = std::dynamic_pointer_cast<" << clean_args[1] << ">(" << clean_token(clean_args[0]) << ");" << endl;
             } else {
-                file << ");" << endl;
+                if (use_variant_get) {
+                    file << " = std::get<" << tuple_type << ">(" << v->func[0].name << "(";
+                } else {
+                    if (std::find(declared_classes.begin(), declared_classes.end(), v->func[0].name) != declared_classes.end()) {
+                        file << " = std::make_shared<" << v->func[0].name << ">(";
+                    } else {
+                        file << " = " << v->func[0].name << "(";
+                    }
+                }
+
+                for (size_t k = 0; k < clean_args.size(); ++k) {
+                    file << clean_token(clean_args[k]);
+                    if (k + 1 < clean_args.size()) {
+                        file << ", ";
+                    }
+                }
+
+                if (use_variant_get) {
+                    file << "));" << endl;
+                } else {
+                    file << ");" << endl;
+                }
             }
         }
         else {
@@ -451,20 +576,30 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
     }
 
     else if (auto call = dynamic_pointer_cast<Call_func>(node)) {
-        file << indent << call->name << "(";
         vector<string> clean_args;
         for (const auto& arg : call->arg_func) {
             if (arg != " " && arg != "," && !arg.empty()) {
                 clean_args.push_back(arg);
             }
         }
-        for (size_t k = 0; k < clean_args.size(); ++k) {
-            file << clean_token(clean_args[k]);
-            if (k + 1 < clean_args.size()) {
-                file << ", ";
+
+        if (call->name == "cast") {
+            file << indent << "std::dynamic_pointer_cast<" << clean_args[1] << ">(" << clean_token(clean_args[0]) << ");" << endl;
+        } else {
+            file << indent;
+            if (std::find(declared_classes.begin(), declared_classes.end(), call->name) != declared_classes.end()) {
+                file << "std::make_shared<" << call->name << ">(";
+            } else {
+                file << call->name << "(";
             }
+            for (size_t k = 0; k < clean_args.size(); ++k) {
+                file << clean_token(clean_args[k]);
+                if (k + 1 < clean_args.size()) {
+                    file << ", ";
+                }
+            }
+            file << ");" << endl;
         }
-        file << ");" << endl;
     }
     
     else if (auto r = dynamic_pointer_cast<Return_node>(node)) {
@@ -596,6 +731,14 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
 
 
 void Interpreter::print_ast(const AST& tree) {
+    declared_classes.clear();
+    variable_types.clear();
+    for (const auto& node : tree.rekurzia) {
+        if (auto t = dynamic_pointer_cast<Typ>(node)) {
+            declared_classes.push_back(t->name);
+        }
+    }
+
     function_returns.clear();
     for (const auto& node : tree.rekurzia) {
         if (auto f = dynamic_pointer_cast<Func_create>(node)) {
@@ -635,9 +778,14 @@ void Interpreter::print_ast(const AST& tree) {
 
 
     // 3. global
-    MyFile << "int main() {" << endl;
+    MyFile << "int main(int argc, char* argv[]) {" << endl;
+    MyFile << "  myArray<string> arg;" << endl;
+    MyFile << "  for (int i = 0; i < argc; ++i) {" << endl;
+    MyFile << "    arg.append(argv[i]);" << endl;
+    MyFile << "  }" << endl;
 
     vector<string> variables_or;
+    variables_or.push_back("arg");
     for (const auto& node : tree.rekurzia) {
         if (dynamic_pointer_cast<Func_create>(node) || dynamic_pointer_cast<Import>(node) || dynamic_pointer_cast<Typ>(node)) {
             continue;
