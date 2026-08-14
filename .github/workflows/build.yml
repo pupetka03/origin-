@@ -1,10 +1,14 @@
-name: Build Origin++ Compiler
+name: Build and Release Origin++ Compiler
 
 on:
   push:
     branches: [ "master", "main", "compiler-packer" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "master", "main" ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -36,3 +40,46 @@ jobs:
           origin
           origin.exe
         if-no-files-found: ignore
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Prepare Release Assets
+      run: |
+        mkdir -p release-assets
+        cp artifacts/origin-ubuntu-latest/origin release-assets/origin-linux || true
+        cp artifacts/origin-macos-latest/origin release-assets/origin-macos || true
+        cp artifacts/origin-windows-latest/origin.exe release-assets/origin-windows.exe || true
+        ls -la release-assets
+
+    - name: Create or Update GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: "Origin++ Compiler (Latest Build)"
+        body: |
+          Автоматична збірка компілятора Origin++ для різних платформ.
+          
+          Скачайте бінарник для вашої системи:
+          - **Windows**: `origin-windows.exe`
+          - **macOS**: `origin-macos`
+          - **Linux**: `origin-linux`
+        files: |
+          release-assets/origin-linux
+          release-assets/origin-macos
+          release-assets/origin-windows.exe
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
