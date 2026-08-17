@@ -37,6 +37,16 @@ print("x is: ", x, " and y is: ", y)
 print(z)
 ```
 
+Також можна явно вказувати тип змінної:
+```python
+x -> int = 5
+d -> int* //pointer
+d = &x
+
+print(x, *d)
+
+```
+
 ### 2. Boolean Logic & Branching / Логіка та Розгалуження
 ```python
 i = 0
@@ -281,20 +291,90 @@ res = get_user_data(1)
 print(int(res) + 1) # працює!
 ```
 
+### 11. Polymorphic Lists & Loops / Поліморфні списки та Цикли
+Origin++ supports polymorphic lists of base class pointers and correctly handles member dereferencing in loop scoping and index access:
+
+```python
+# 1. Declaring a list of base pointers / Список вказівників базового класу
+animals -> Animal = [d1, d2]
+
+# 2. Loop scoping works dynamically / Автоматичне визначення типів у циклах
+takt a animals {
+    print("Тварина: ", a.name)  # 'a' has type Animal, transpiles to a->name
+}
+
+# 3. Index access dereferencing / Звернення до елементів списку за індексом
+i = 0
+cykl i < animals.size() {
+    print(animals[i].name)     # Transpiles to animals[i]->name
+    i = i + 1
+}
+```
+
+### 12. Type Checking & Casting / Перевірка типів та Приведення (`is`, `cast`)
+Check object classes dynamically at runtime and cast base pointers to derived types:
+
+```python
+# 1. Using 'is(object, Class)' / Перевірка типу (RTTI)
+jak is(a, Dog) {
+    print("Це собака!")
+}
+
+# 2. Dynamic cast / Безпечне приведення типів
+dev = cast(node, Developer)
+jak dev != nic {
+    print("Developer name: ", dev.x)
+}
+```
+
+### 13. Command Line Arguments / Аргументи командного рядка (`arg`)
+Arguments passed to the program are automatically available in the global list `arg` of type `string`:
+
+```python
+import origin
+
+# arg[0] is the program path / назва бінарника
+# arg[1] is the first argument / перший аргумент
+print("Назва програми: ", arg[0])
+jak arg.size() > 1 {
+    print("Перший параметр: ", arg[1])
+}
+```
+
+### 14. Modular Imports / Модульність (`import`)
+Compile and organize code into separate namespace files:
+
+```python
+# File: helper.ori
+baza say_hello() {
+    print("Привіт!")
+}
+
+# File: main.ori
+import helper
+
+helper.say_hello()  # Transpiles to helper::say_hello() namespace call
+```
 
 ---
 
 ## 🛠️ Getting Started / Як запустити
 
-Origin++ includes an automated shell script that compiles the transpiler, generates C++ code, compiles it, and runs the binary.
+The compiler binary `origin` acts as a unified compiler driver. You can transpile, compile, and run your code in one step:
 
-Origin++ має вбудований скрипт, який автоматично компілює транслятор, перекладає твою програму в C++, компілює її та запускає готовий бінарник.
+Компілятор `origin` працює як універсальний драйвер. Ви можете транспілювати, збирати та запускати код в один крок:
 
 ```bash
 # Clone the repository / Склонуйте репозиторій
 git clone <repository-url>
 cd origin++
 
-# Run your script (e.g. or.txt) / Запустіть скрипт
-./run.sh or.txt
+# Compile the compiler itself (if needed) / Зібрати компілятор
+clang++ -std=c++17 main.cpp lexer/src/lexer.cpp Interpreter/interpreter.cpp -o origin
+
+# 1. Transpile only / Тільки транспіляція в C++
+./origin program.ori
+
+# 2. Transpile, compile, and run with arguments / Скомпілювати та запустити з аргументами
+./origin program.ori -r -- arg1 arg2
 ```

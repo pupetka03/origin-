@@ -488,6 +488,19 @@ inline int _int(const char* val) {
 }
 
 template <typename T>
+char _char(T val) {
+    return static_cast<char>(val);
+}
+inline char _char(const string& val) {
+    if (val.empty()) return '\0';
+    return val[0];
+}
+inline char _char(const char* val) {
+    if (!val || val[0] == '\0') return '\0';
+    return val[0];
+}
+
+template <typename T>
 double _double(T val) {
     return static_cast<double>(val);
 }

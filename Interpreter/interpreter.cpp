@@ -700,7 +700,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                     if (std::find(declared_classes.begin(), declared_classes.end(), v->func[0].name) != declared_classes.end()) {
                         file << " = std::make_shared<" << v->func[0].name << ">(";
                     } else {
-                        file << " = " << v->func[0].name << "(";
+                        file << " = " << clean_expression_string(v->func[0].name) << "(";
                     }
                 }
 
@@ -738,7 +738,7 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             if (std::find(declared_classes.begin(), declared_classes.end(), call->name) != declared_classes.end()) {
                 file << "std::make_shared<" << call->name << ">(";
             } else {
-                file << call->name << "(";
+                file << clean_expression_string(call->name) << "(";
             }
             for (size_t k = 0; k < clean_args.size(); ++k) {
                 file << clean_token(clean_args[k]);
