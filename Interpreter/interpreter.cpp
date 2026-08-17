@@ -147,14 +147,19 @@ string clean_expression_string(string expr) {
         }
     }
     
-    // Replace "nas" with "this" checking for word boundaries
+    // Replace "nas." with "this->" or "nas" with "this" checking for word boundaries
     size_t nas_pos = 0;
     while ((nas_pos = expr.find("nas", nas_pos)) != string::npos) {
         bool before_ok = (nas_pos == 0 || (!isalnum(static_cast<unsigned char>(expr[nas_pos - 1])) && expr[nas_pos - 1] != '_'));
         bool after_ok = (nas_pos + 3 == expr.length() || (!isalnum(static_cast<unsigned char>(expr[nas_pos + 3])) && expr[nas_pos + 3] != '_'));
         if (before_ok && after_ok) {
-            expr.replace(nas_pos, 3, "this");
-            nas_pos += 4; // skip "this"
+            if (nas_pos + 3 < expr.length() && expr[nas_pos + 3] == '.') {
+                expr.replace(nas_pos, 4, "this->");
+                nas_pos += 6; // skip "this->"
+            } else {
+                expr.replace(nas_pos, 3, "this");
+                nas_pos += 4; // skip "this"
+            }
         } else {
             nas_pos += 3; // skip "nas"
         }
@@ -273,13 +278,34 @@ string clean_type(string type) {
     if (std::find(declared_classes.begin(), declared_classes.end(), type) != declared_classes.end()) {
         return "std::shared_ptr<" + type + ">";
     }
+
+    // Convert [ and ] to < and > for templated types like dict[K, V] first
+    size_t bracket_open = type.find('[');
+    if (bracket_open != string::npos) {
+        type[bracket_open] = '<';
+        size_t bracket_close = type.rfind(']');
+        if (bracket_close != string::npos) {
+            type[bracket_close] = '>';
+        }
+    }
+
+    // Handle recursive templated types like list<T> or _list<T>
+    size_t open_bracket = type.find('<');
+    if (open_bracket != string::npos) {
+        size_t close_bracket = type.rfind('>');
+        if (close_bracket != string::npos && close_bracket > open_bracket) {
+            string base = type.substr(0, open_bracket);
+            string inner = type.substr(open_bracket + 1, close_bracket - open_bracket - 1);
+            return clean_type(base) + "<" + clean_type(inner) + ">";
+        }
+    }
+
     // If the type contains a colon, it's a dictionary shorthand: K:V -> dict<K, V>
     size_t colon_pos = type.find(':');
     if (colon_pos != string::npos) {
         string key_part = type.substr(0, colon_pos);
         string val_part = type.substr(colon_pos + 1);
         
-        // Clean both parts first to handle any potential underscores
         key_part = clean_type(key_part);
         val_part = clean_type(val_part);
         
@@ -302,16 +328,6 @@ string clean_type(string type) {
         while ((pos = type.find(r.first, pos)) != string::npos) {
             type.replace(pos, r.first.length(), r.second);
             pos += r.second.length();
-        }
-    }
-    
-    // Convert [ and ] to < and > for templated types like dict[K, V]
-    size_t bracket_open = type.find('[');
-    if (bracket_open != string::npos) {
-        type[bracket_open] = '<';
-        size_t bracket_close = type.rfind(']');
-        if (bracket_close != string::npos) {
-            type[bracket_close] = '>';
         }
     }
     

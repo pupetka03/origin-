@@ -63,15 +63,19 @@
             "patterns": [
                 {
                     "name": "keyword.control.origin",
-                    "match": "\\b(jak|inakjak|inak|cykl|takt|return|break|continue|import|print|nic)\\b"
+                    "match": "\\b(jak|inakjak|inak|cykl|takt|return|break|continue|import|print|nic|cast|abo|ta|ne|is)\\b"
                 },
                 {
-                    "name": "keyword.other.origin",
+                    "name": "storage.type.function.origin",
                     "match": "\\b(baza)\\b"
                 },
                 {
-                    "name": "keyword.operator.logical.origin",
-                    "match": "\\b(abo|ta)\\b"
+                    "name": "storage.type.class.origin",
+                    "match": "\\b(typ)\\b"
+                },
+                {
+                    "name": "variable.language.this.origin",
+                    "match": "\\b(nas)\\b"
                 }
             ]
         },
@@ -94,8 +98,8 @@
         "types": {
             "patterns": [
                 {
-                    "name": "storage.type.origin",
-                    "match": "\\b(int|double|float|char|bool|string|list|void)\\b"
+                    "name": "storage.type.primitive.origin",
+                    "match": "\\b(int|double|float|char|bool|string|list|dict|void)\\b"
                 }
             ]
         },
