@@ -139,7 +139,18 @@ string clean_expression_string(string expr) {
             clean_pref.pop_back();
         }
         
-        if (clean_pref.rfind("nas", 0) == 0 || variable_types.count(base_name)) {
+        bool is_class = false;
+        if (variable_types.count(base_name)) {
+            string var_type = variable_types[base_name];
+            bool has_brackets = (prefix.find('[') != string::npos);
+            if (has_brackets && var_type.rfind("list<", 0) == 0 && var_type.back() == '>') {
+                var_type = var_type.substr(5, var_type.length() - 6);
+            }
+            if (std::find(declared_classes.begin(), declared_classes.end(), var_type) != declared_classes.end()) {
+                is_class = true;
+            }
+        }
+        if (clean_pref.rfind("nas", 0) == 0 || is_class) {
             expr.replace(dot_pos, 1, "->");
             dot_pos += 2; // skip "->"
         } else {
@@ -426,13 +437,52 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
         file << clean_tokens_list(rest_cond) << ") {" << endl;
 
         vector<string> var_loop = var_or;
+        string loop_var = "";
+        string old_type = "";
+        bool had_old_type = false;
         if (!t->condition.empty()) {
-            var_loop.push_back(t->condition[0]);
+            loop_var = t->condition[0];
+            var_loop.push_back(loop_var);
+            
+            string collection_name = "";
+            for (const auto& token : rest_cond) {
+                size_t first_alpha = token.find_first_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+                if (first_alpha != string::npos) {
+                    string id = token.substr(first_alpha);
+                    while (!id.empty() && !isalnum(static_cast<unsigned char>(id.back())) && id.back() != '_') {
+                        id.pop_back();
+                    }
+                    if (!id.empty()) {
+                        collection_name = id;
+                        break;
+                    }
+                }
+            }
+            if (!collection_name.empty() && variable_types.count(collection_name)) {
+                string col_type = variable_types[collection_name];
+                string elem_type = col_type;
+                if (col_type.rfind("list<", 0) == 0 && col_type.back() == '>') {
+                    elem_type = col_type.substr(5, col_type.length() - 6);
+                }
+                if (variable_types.count(loop_var)) {
+                    old_type = variable_types[loop_var];
+                    had_old_type = true;
+                }
+                variable_types[loop_var] = elem_type;
+            }
         }
+
         for (const auto& child : t->body) {
             print_tree(child, depth + 1, file, var_loop);
         }
 
+        if (!loop_var.empty()) {
+            if (had_old_type) {
+                variable_types[loop_var] = old_type;
+            } else {
+                variable_types.erase(loop_var);
+            }
+        }
         file << indent << "}" << endl;
     }
 
@@ -463,7 +513,11 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             } else {
                 var_or.push_back(v->name);
                 if (v->type != "auto") {
-                    variable_types[v->name] = v->type;
+                    if (!v->value.empty() && v->value[0] == "[" && v->type.find(':') == string::npos && v->type.find("dict") == string::npos) {
+                        variable_types[v->name] = "list<" + v->type + ">";
+                    } else {
+                        variable_types[v->name] = v->type;
+                    }
                 } else if (!v->func.empty()) {
                     string func_name = v->func[0].name;
                     if (std::find(declared_classes.begin(), declared_classes.end(), func_name) != declared_classes.end()) {
