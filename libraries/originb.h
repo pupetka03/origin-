@@ -346,6 +346,20 @@ public:
         return data.size();
     }
 
+    void clear() {
+        data.clear();
+    }
+
+    bool empty() const {
+        return data.empty();
+    }
+
+    void erase(size_t index) {
+        if (index < data.size()) {
+            data.erase(data.begin() + index);
+        }
+    }
+
     auto begin() { return data.begin(); }
     auto end() { return data.end(); }
     auto begin() const { return data.begin(); }
@@ -717,21 +731,33 @@ bool is_tuple(const Variant<Args...>& var) {
 
 // Range functions
 template <typename T>
-vector<T> range(T start, T end, T step) {
-    vector<T> array; 
-    for (T i = start; i < end; i = i + step) {
-        array.push_back(i);
-    }
-    return array;
+class Range {
+private:
+    T start_val, end_val, step_val;
+public:
+    Range(T start, T end, T step) : start_val(start), end_val(end), step_val(step) {}
+    struct Iterator {
+        T value;
+        T step;
+        bool operator!=(const Iterator& other) const {
+            return step > 0 ? value < other.value : value > other.value;
+        }
+        T operator*() const { return value; }
+        Iterator& operator++() { value += step; return *this; }
+    };
+    Iterator begin() const { return Iterator{start_val, step_val}; }
+    Iterator end() const { return Iterator{end_val, step_val}; }
+};
+// Перевантаження функцій для зручності
+template <typename T>
+Range<T> range(T start, T end, T step = T(1)) {
+    return Range<T>(start, end, step);
 }
 template <typename T>
-vector<T> range(T start, T end) {
-    return range(start, end, T(1));
+Range<T> range(T end) {
+    return Range<T>(T(0), end, T(1));
 }
-template <typename T>
-vector<T> range(T end) {
-    return range(T(0), end, T(1));
-}
+
 
 // Console input class and object
 class Console_Origin {
