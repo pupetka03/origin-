@@ -52,6 +52,100 @@ string clean_expression_string(string expr) {
     if (expr == "nas") {
         return "this";
     }
+
+    // Replace "is(A, B)" with "(std::dynamic_pointer_cast<B>(A) != nullptr)"
+    size_t is_pos = 0;
+    while ((is_pos = expr.find("is", is_pos)) != string::npos) {
+        bool before_ok = (is_pos == 0 || (!isalnum(static_cast<unsigned char>(expr[is_pos - 1])) && expr[is_pos - 1] != '_'));
+        size_t next_char = is_pos + 2;
+        while (next_char < expr.length() && isspace(static_cast<unsigned char>(expr[next_char]))) {
+            next_char++;
+        }
+        bool after_ok = (next_char < expr.length() && expr[next_char] == '(');
+        if (before_ok && after_ok) {
+            int depth = 1;
+            size_t start_arg = next_char + 1;
+            size_t end_pos = start_arg;
+            while (end_pos < expr.length() && depth > 0) {
+                if (expr[end_pos] == '(') depth++;
+                else if (expr[end_pos] == ')') depth--;
+                end_pos++;
+            }
+            if (depth == 0) {
+                string inner = expr.substr(start_arg, end_pos - 1 - start_arg);
+                size_t comma = inner.find(',');
+                if (comma != string::npos) {
+                    string arg1 = inner.substr(0, comma);
+                    string arg2 = inner.substr(comma + 1);
+                    auto trim = [](string s) {
+                        size_t first = s.find_first_not_of(" \t\r\n");
+                        if (first == string::npos) return string("");
+                        size_t last = s.find_last_not_of(" \t\r\n");
+                        return s.substr(first, (last - first + 1));
+                    };
+                    arg1 = trim(arg1);
+                    arg2 = trim(arg2);
+                    
+                    string replacement = "(std::dynamic_pointer_cast<" + arg2 + ">(" + arg1 + ") != nullptr)";
+                    expr.replace(is_pos, end_pos - is_pos, replacement);
+                    is_pos += replacement.length();
+                } else {
+                    is_pos += 2;
+                }
+            } else {
+                is_pos += 2;
+            }
+        } else {
+            is_pos += 2;
+        }
+    }
+
+    // Replace "cast(A, B)" with "std::dynamic_pointer_cast<B>(A)"
+    size_t cast_pos = 0;
+    while ((cast_pos = expr.find("cast", cast_pos)) != string::npos) {
+        bool before_ok = (cast_pos == 0 || (!isalnum(static_cast<unsigned char>(expr[cast_pos - 1])) && expr[cast_pos - 1] != '_'));
+        size_t next_char = cast_pos + 4;
+        while (next_char < expr.length() && isspace(static_cast<unsigned char>(expr[next_char]))) {
+            next_char++;
+        }
+        bool after_ok = (next_char < expr.length() && expr[next_char] == '(');
+        if (before_ok && after_ok) {
+            int depth = 1;
+            size_t start_arg = next_char + 1;
+            size_t end_pos = start_arg;
+            while (end_pos < expr.length() && depth > 0) {
+                if (expr[end_pos] == '(') depth++;
+                else if (expr[end_pos] == ')') depth--;
+                end_pos++;
+            }
+            if (depth == 0) {
+                string inner = expr.substr(start_arg, end_pos - 1 - start_arg);
+                size_t comma = inner.find(',');
+                if (comma != string::npos) {
+                    string arg1 = inner.substr(0, comma);
+                    string arg2 = inner.substr(comma + 1);
+                    auto trim = [](string s) {
+                        size_t first = s.find_first_not_of(" \t\r\n");
+                        if (first == string::npos) return string("");
+                        size_t last = s.find_last_not_of(" \t\r\n");
+                        return s.substr(first, (last - first + 1));
+                    };
+                    arg1 = trim(arg1);
+                    arg2 = trim(arg2);
+                    
+                    string replacement = "std::dynamic_pointer_cast<" + arg2 + ">(" + arg1 + ")";
+                    expr.replace(cast_pos, end_pos - cast_pos, replacement);
+                    cast_pos += replacement.length();
+                } else {
+                    cast_pos += 4;
+                }
+            } else {
+                cast_pos += 4;
+            }
+        } else {
+            cast_pos += 4;
+        }
+    }
     
     // Replace "nas" with "this" checking for word boundaries
     size_t nas_pos = 0;

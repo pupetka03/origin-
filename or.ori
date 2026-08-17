@@ -1,13 +1,30 @@
 import origin
 
-f = f_open("origin.ori", "r")
-
-cykl true {
-    line = f.citat_riadok()
-    jak line == "" {
-        break
-    }
-    print(line)
+typ Animal() {
+    name -> string
 }
 
-f.zakryty()
+typ Dog(Animal) {
+    breed -> string
+}
+
+d1 = Dog()
+d1.name = "Рекс"
+
+d2 = Animal()
+d2.name = "Звичайна Тварина"
+
+animals -> Animal = [d1, d2]
+
+takt a animals {
+    print("Тварина: ", a.name)
+    jak cast(a, Dog) {
+        print(" -> Це собака!")
+    } inak {
+        print(" -> Це не собака!")
+    }
+}
+
+
+g=0
+v -> int& = g
