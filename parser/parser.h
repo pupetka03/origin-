@@ -326,14 +326,29 @@ public:
             (*i)++;
             while(text[*i] != ")") {
                 if (text[*i] != "," && text[*i] != " ") {
-                    Func.arg_func.push_back(text[*i]);
+                    string arg_name = text[*i];
+                    string arg_type = "";
+                    (*i)++;
+                    // Check for optional type annotation: name -> Type
+                    if (*i + 1 < text.size() && text[*i] == "-" && text[*i+1] == ">") {
+                        (*i) += 2; // skip ->
+                        while (*i < text.size() && text[*i] == " ") (*i)++;
+                        if (*i < text.size() && text[*i] != "," && text[*i] != ")") {
+                            arg_type = text[*i];
+                            (*i)++;
+                        }
+                    }
+                    Func.arg_func.push_back(arg_name);
+                    Func.arg_types.push_back(arg_type);
+                    continue; // already advanced i
                 }
                 (*i)++;
             } (*i)++;
 
             if (Func.arg_func.empty()) {
                 Func.arg_func.push_back(" ");
-            } 
+                Func.arg_types.push_back("");
+            }
 
             
             if (*i < text.size() && text[*i] == "-" && text[*i+1] == ">") {

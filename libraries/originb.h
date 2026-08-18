@@ -26,6 +26,33 @@ using bool_t = bool;
 using string_t = std::string;
 
 // ============================================================================
+// TYPE CONVERSIONS — string(x), int(x), double(x), float(x), bool(x)
+// Uniform Python-style casting. In generated C++, string(x) is emitted as
+// ori_str(x) by the transpiler to avoid conflict with std::string type name.
+// ============================================================================
+
+template <typename T,
+          typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+inline std::string ori_str(T x) {
+    if constexpr (std::is_same_v<T, bool>)
+        return x ? "true" : "false";
+    else if constexpr (std::is_same_v<T, char>)
+        return std::string(1, x);
+    else
+        return std::to_string(x);
+}
+inline std::string ori_str(const std::string& x) { return x; }
+inline std::string ori_str(const char* x)         { return std::string(x); }
+
+// string → number conversions (used when casting string to numeric type)
+inline int    ori_int   (const std::string& x) { return std::stoi(x); }
+inline double ori_double(const std::string& x) { return std::stod(x); }
+inline float  ori_float (const std::string& x) { return std::stof(x); }
+inline bool   ori_bool  (const std::string& x) {
+    return !x.empty() && x != "false" && x != "0";
+}
+
+// ============================================================================
 // 1. CORE META-PROGRAMMING HELPERS
 // ============================================================================
 

@@ -22,7 +22,8 @@ class AST {
 
 class Func_create : public AST {
     public:
-        vector<string> arg_func;
+        vector<string> arg_func;       // parameter names
+        vector<string> arg_types;      // parameter types (empty string = untyped / template)
         vector<shared_ptr<AST>> body;
         vector<string> retur_n; //return
         

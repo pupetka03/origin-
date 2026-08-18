@@ -260,6 +260,22 @@ string clean_expression_string(string expr) {
 }
 
 string clean_token(string token) {
+    // De-mangle reserved-keyword type names that were prefixed with '_' by the lexer.
+    // These appear in expressions as type-cast calls, e.g. _double(count) → double(count).
+    // Special case: _string(x) → ori_str(x) to avoid conflict with std::string type name.
+    static const std::vector<std::pair<std::string,std::string>> type_demangle = {
+        {"_int", "int"}, {"_double", "double"}, {"_float", "float"},
+        {"_char", "char"}, {"_bool", "bool"}, {"_void", "void"},
+        {"_string", "ori_str"}, {"_list", "list"}, {"_dict", "dict"},
+        {"_auto", "auto"}
+    };
+    for (const auto& p : type_demangle) {
+        // Only replace if it's the whole token or a prefix before '('
+        if (token == p.first || token.rfind(p.first + "(", 0) == 0) {
+            token.replace(0, p.first.size(), p.second);
+            break;
+        }
+    }
     return clean_expression_string(token);
 }
 
@@ -412,15 +428,29 @@ void print_baza(const vector<shared_ptr<AST>>& tree, ofstream &file) {
                     clean_args.push_back(arg);
                 }
             }
-            if (!clean_args.empty()) {
-                file << "template <typename T> ";
+            // Build template params only for untyped args
+            vector<size_t> template_idxs;
+            for (size_t k = 0; k < clean_args.size(); ++k) {
+                bool has_type = (k < f->arg_types.size() && !f->arg_types[k].empty());
+                if (!has_type) template_idxs.push_back(k);
+            }
+            if (!template_idxs.empty()) {
+                file << "template <";
+                for (size_t j = 0; j < template_idxs.size(); ++j) {
+                    file << "typename T" << template_idxs[j];
+                    if (j + 1 < template_idxs.size()) file << ", ";
+                }
+                file << "> ";
             }
             file << type_of_fun(f->control_return, f->body) << " " << f->name << "(";
             for (size_t k = 0; k < clean_args.size(); ++k) {
-                file << "T " << clean_args[k];
-                if (k + 1 < clean_args.size()) {
-                    file << ", ";
+                bool has_type = (k < f->arg_types.size() && !f->arg_types[k].empty());
+                if (has_type) {
+                    file << clean_type(f->arg_types[k]) << " " << clean_args[k];
+                } else {
+                    file << "T" << k << " " << clean_args[k];
                 }
+                if (k + 1 < clean_args.size()) file << ", ";
             }
             file << ");" << endl;
         }
@@ -479,22 +509,41 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
             }
         }
         file << indent;
-        if (!clean_args.empty()) {
-            file << "template <typename T> ";
-        }
-        file << types <<" "<<  f->name << "(";
+        // Build template params only for untyped args
+        vector<size_t> template_idxs;
         for (size_t k = 0; k < clean_args.size(); ++k) {
-            file << "T " << clean_args[k];
-            if (k + 1 < clean_args.size()) {
-                file << ", ";
+            bool has_type = (k < f->arg_types.size() && !f->arg_types[k].empty());
+            if (!has_type) template_idxs.push_back(k);
+        }
+        if (!template_idxs.empty()) {
+            file << "template <";
+            for (size_t j = 0; j < template_idxs.size(); ++j) {
+                file << "typename T" << template_idxs[j];
+                if (j + 1 < template_idxs.size()) file << ", ";
             }
+            file << "> ";
+        }
+        file << types <<" "<< f->name << "(";
+        for (size_t k = 0; k < clean_args.size(); ++k) {
+            bool has_type = (k < f->arg_types.size() && !f->arg_types[k].empty());
+            if (has_type) {
+                file << clean_type(f->arg_types[k]) << " " << clean_args[k];
+            } else {
+                file << "T" << k << " " << clean_args[k];
+            }
+            if (k + 1 < clean_args.size()) file << ", ";
         }
         file << ") {" << endl;
 
         vector<string> var_of_fun = var_or;
-        for (const auto& arg : f->arg_func) {
+        for (size_t k = 0; k < clean_args.size(); ++k) {
+            string arg = clean_args[k];
             if (arg != " " && !arg.empty()) {
                 var_of_fun.push_back(arg);
+                // Register typed params so dot-to-arrow works for class types
+                if (k < f->arg_types.size() && !f->arg_types[k].empty()) {
+                    variable_types[arg] = f->arg_types[k];
+                }
             }
         }
 
@@ -836,38 +885,59 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                     }
                 }
                 
+                // Build template list — only untyped params become T0, T1...
+                vector<size_t> tmpl_idxs;
+                for (size_t k = 0; k < clean_args.size(); ++k) {
+                    bool typed = (k < meth->arg_types.size() && !meth->arg_types[k].empty());
+                    if (!typed) tmpl_idxs.push_back(k);
+                }
+
                 file << indent << "  ";
-                if (!clean_args.empty()) {
+                if (!tmpl_idxs.empty()) {
                     file << "template <";
-                    for (size_t k = 0; k < clean_args.size(); ++k) {
-                        file << "typename T" << k;
-                        if (k + 1 < clean_args.size()) file << ", ";
+                    for (size_t j = 0; j < tmpl_idxs.size(); ++j) {
+                        file << "typename T" << tmpl_idxs[j];
+                        if (j + 1 < tmpl_idxs.size()) file << ", ";
                     }
                     file << "> ";
                 }
-                
-                // If it is a constructor (method name matches class name)
+
+                // Constructor vs regular method
                 if (meth->name == f->name) {
                     file << meth->name << "(";
                 } else {
-                    if (clean_args.empty()) {
+                    // C++ forbids 'virtual' on template methods
+                    if (tmpl_idxs.empty()) {
                         file << "virtual ";
                     }
                     file << type_of_fun(meth->control_return, meth->body) << " " << meth->name << "(";
                 }
-                
+
                 for (size_t k = 0; k < clean_args.size(); ++k) {
-                    file << "T" << k << " " << clean_args[k];
-                    if (k + 1 < clean_args.size()) {
-                        file << ", ";
+                    bool typed = (k < meth->arg_types.size() && !meth->arg_types[k].empty());
+                    if (typed) {
+                        file << clean_type(meth->arg_types[k]) << " " << clean_args[k];
+                    } else {
+                        file << "T" << k << " " << clean_args[k];
                     }
+                    if (k + 1 < clean_args.size()) file << ", ";
                 }
-                file << ") {" << endl;
+                // For constructors of derived classes, emit base class initializer
+                // so C++ doesn't complain about missing base constructor call.
+                if (meth->name == f->name && f->podoba != "false") {
+                    file << ") : " << f->podoba << "() {" << endl;
+                } else {
+                    file << ") {" << endl;
+                }
                 
-                // Setup variable scope inside the method
+                // Setup variable scope inside the method.
                 vector<string> var_of_meth = class_fields;
-                for (const auto& arg : clean_args) {
-                    var_of_meth.push_back(arg);
+                for (size_t k = 0; k < clean_args.size(); ++k) {
+                    var_of_meth.push_back(clean_args[k]);
+                    // Register typed params so dot-to-arrow works for class types
+                    if (k < meth->arg_types.size() && !meth->arg_types[k].empty()) {
+                        variable_types[clean_args[k]] = meth->arg_types[k];
+                    }
                 }
                 var_of_meth.push_back("nas");
                 
@@ -877,6 +947,19 @@ void Interpreter::print_tree(const shared_ptr<AST>& node, int depth, ofstream &f
                 }
                 file << indent << "  }" << endl;
             }
+        }
+        // If the class has an explicit constructor, add a protected default
+        // constructor so derived classes can use `: Parent()` initializer.
+        bool has_constructor = false;
+        for (const auto& member : f->body) {
+            if (auto meth = dynamic_pointer_cast<Func_create>(member)) {
+                if (meth->name == f->name) { has_constructor = true; break; }
+            }
+        }
+        if (has_constructor) {
+            file << indent << "protected:" << endl;
+            file << indent << "  " << f->name << "() = default;" << endl;
+            file << indent << "public:" << endl;
         }
         
         file << indent << "  virtual ~" << f->name << "() = default;" << endl;
@@ -912,20 +995,30 @@ void Interpreter::print_ast(const AST& tree) {
 
     ofstream MyFile("origin.cpp");
     import_data(MyFile);
+
+    // Emit forward declarations for all classes first,
+    // so function signatures can reference class types.
+    for (const auto& cls : declared_classes) {
+        MyFile << "class " << cls << ";" << endl;
+    }
+
     print_baza(tree.rekurzia, MyFile);
     
     MyFile << endl;
 
     vector<string> dummy_vars;
+
+    // Emit class (typ) definitions BEFORE function bodies so that
+    // functions referencing class types (e.g. make_shared<Student>) can see them.
     for (const auto& node : tree.rekurzia) {
-        if (auto f = dynamic_pointer_cast<Func_create>(node)) {
+        if (auto f = dynamic_pointer_cast<Typ>(node)) {
             print_tree(node, 0, MyFile, dummy_vars);
             MyFile << endl;
         }
     }
 
     for (const auto& node : tree.rekurzia) {
-        if (auto f = dynamic_pointer_cast<Typ>(node)) {
+        if (auto f = dynamic_pointer_cast<Func_create>(node)) {
             print_tree(node, 0, MyFile, dummy_vars);
             MyFile << endl;
         }

@@ -162,6 +162,50 @@ takt x numbers {
 x = int(5.9)      # 5
 y = int("45")     # 45
 z = string(100)   # "100"
+w = string(3.14)  # "3.140000"
+b = string(true)  # "true"
+f = double("2.5") # 2.5
+```
+Uniform Python-style casting — `string()`, `int()`, `double()`, `float()`, `bool()` працюють для всіх базових типів.
+
+### 6.1 Typed Function Parameters / Типізовані параметри функцій
+By default, all function/method parameters are untyped templates (`T0`, `T1`...). You can annotate parameters with `-> Type` to give them a specific C++ type:
+
+За замовчуванням усі параметри — нетипізовані шаблони. Можна вказати тип через `-> Тип`:
+
+```python
+# Untyped (template) — works for any type / Нетипізований
+baza add(x, y) {
+    return x + y
+}
+
+# Typed — specific C++ types / Типізований
+baza greet(name -> string, age -> int) {
+    print("Привіт, ", name, "! Тобі ", age, " років")
+}
+
+# Mixed — some typed, some template / Змішаний
+baza process(data, format -> string) {
+    print("Формат: ", format)
+    return data
+}
+```
+
+**For class-typed parameters**: when you pass an object of a class, you **must** annotate its type so the transpiler correctly generates `->` (pointer access) instead of `.` (value access):
+
+**Для параметрів-класів**: коли параметр — об'єкт класу, **обов'язково** вказуйте тип, щоб транспілер генерував `->` замість `.`:
+
+```python
+typ Character() {
+    name -> string
+    hp -> int = 100
+
+    # Without annotation, target.name would fail! / Без анотації target.name не спрацює!
+    baza attack(target -> Character) {
+        print(nas.name, " атакує ", target.name)
+        target.take_damage(10)
+    }
+}
 ```
 
 ### 7. Dictionaries / Словники (`dict`)
